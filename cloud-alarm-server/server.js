@@ -1,39 +1,26 @@
 const express = require('express');
 const cors = require('cors');
+const path = require('path');
 const app = express();
 
 app.use(express.json());
 app.use(cors());
+
+// Force absolute path for the public folder
 app.use(express.static(path.join(__dirname, 'public'))); 
 
-// 3. Force the server to send index.html when someone visits the main link
+// Explicit fallback to serve index.html on the main route
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// Initial register of nodes matching your setup rooms/positions
+// Initial system state
 let systemStatus = {
     "PRC 13th": { status: "online", lastSeen: Date.now(), alarmTriggered: false, rfCode: null },
     "Fuji 4th Accounts": { status: "offline", lastSeen: 0, alarmTriggered: false, rfCode: null }
 };
 
-let clients = [];const express = require('express');
-const cors = require('cors');
-const path = require('path'); // 1. Import the built-in path module
-const app = express();
-
-app.use(express.json());
-app.use(cors());
-
-// 2. Lock the static folder to an absolute path
-app.use(express.static(path.join(__dirname, 'public'))); 
-
-// 3. Force the server to send index.html when someone visits the main link
-app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
-
-// ... [Keep the rest of your systemStatus, broadcast(), and API endpoints exactly the same below this line] ...
+let clients = [];
 
 function broadcast() {
     const payload = `data: ${JSON.stringify(systemStatus)}\n\n`;
@@ -84,7 +71,7 @@ app.post('/api/reset-all', (req, res) => {
     res.sendStatus(200);
 });
 
-// Background tracker to flag nodes as offline if heartbeat stops (>90s)
+// 4. Background tracker to flag nodes as offline if heartbeat stops (>90s)
 setInterval(() => {
     let changed = false;
     const now = Date.now();
