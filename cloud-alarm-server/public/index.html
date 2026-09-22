@@ -1,251 +1,92 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cloud Alarm Dashboard</title>
-    <style>
-        /* Full Screen Dark Theme & Layout */
-        body { 
-            margin: 0; 
-            font-family: system-ui, sans-serif; 
-            background-color: #12141d; 
-            color: #ffffff;
-            height: 100vh; 
-            display: flex; 
-            flex-direction: column;
-            overflow: hidden; 
-        }
-        
-        .header-bg { padding: 20px 30px; flex-shrink: 0; }
-        .title-text { color: #6d809c; font-size: 15px; margin-bottom: 25px; font-weight: 600; }
-        .controls-row { display: flex; align-items: center; gap: 20px; margin-bottom: 40px; }
-        
-        #conn-badge { 
-            display: flex; align-items: center; background-color: #1a1a1a; 
-            border: 1px solid #6d809c; color: #6d809c; padding: 6px 18px; 
-            border-radius: 20px; font-size: 13px; font-weight: 600; 
-        }
-        #conn-badge.connected { color: #4CAF50; border-color: #4CAF50; }
-        #conn-badge.error { color: #F44336; border-color: #F44336; }
-        
-        .spinner {
-            display: inline-block; width: 14px; height: 14px;
-            border: 2px solid rgba(255,255,255,0.3); border-radius: 50%;
-            border-top-color: currentColor; animation: spin 1s linear infinite;
-            margin-right: 8px;
-        }
-        @keyframes spin { to { transform: rotate(360deg); } }
+#include <ESP8266WiFi.h>
+#include <ESP8266HTTPClient.h>
+#include <WiFiClientSecure.h> // Required for Render HTTPS
+#include <WiFiManager.h>
+#include <RCSwitch.h>
+#include <EEPROM.h>
 
-        .btn-silence { 
-            background-color: #e54d42; color: white; border: none; 
-            padding: 8px 24px; border-radius: 6px; font-weight: 600; 
-            cursor: pointer; transition: 0.2s;
-        }
-        .btn-silence:hover { background-color: #ff574a; }
-        
-        .event-log-container { border-bottom: 1px solid #2a2e3d; padding-bottom: 8px; }
-        .event-log-container span { color: #ffffff; font-weight: 700; font-size: 16px; }
+RCSwitch mySwitch = RCSwitch();
 
-        .table-area {
-            flex-grow: 1; display: flex; align-items: flex-end; 
-            justify-content: center; padding: 40px 30px;
-        }
-        
-        .tables-wrapper { display: flex; width: 100%; gap: 30px; }
-        .green-border-outer { flex: 1; border: 2px solid #578a51; padding: 3px; background-color: #12141d; }
-        .green-border-inner { border: 1px solid #578a51; background-color: #1e212b; height: 100%; }
-        
-        table { width: 100%; border-collapse: collapse; table-layout: fixed; }
-        th, td { border: 1px solid #2a2e3d; padding: 12px 15px; text-align: left; font-size: 14px; color: #ffffff; height: 22px; }
-        
-        th { font-weight: 800; background-color: #252936; color: #a1b0c8; text-transform: uppercase; letter-spacing: 0.5px; }
-        
-        .status-green { background-color: #578a51; color: white; font-weight: 600; }
-        .status-orange { background-color: #d17a43; color: white; font-weight: 600; }
-        .status-red { background-color: #e54d42; color: white; font-weight: 600; animation: flash 1s infinite alternate; }
-        
-        @keyframes flash { from { opacity: 1; } to { opacity: 0.6; } }
-    </style>
-</head>
-<body>
+String serverUrl = "https://your-app-name.onrender.com/api/alarm";
 
-<div class="header-bg">
-    <div class="title-text">Live status of all room alarm nodes</div>
-    <div class="controls-row">
-        <div id="conn-badge">
-            <span class="spinner" id="conn-spinner"></span> 
-            <span id="conn-text">Connecting...</span>
-        </div>
-        <button class="btn-silence" onclick="silenceAlarms()">Silence All Alarms</button>
-    </div>
-    <div class="event-log-container">
-        <span>Event Log</span>
-    </div>
-</div>
+char moduleName[33] = "Unknown Room"; // Default fallback
+unsigned long lastHeartbeat = 0;
+const unsigned long heartbeatInterval = 60000;
 
-<div class="table-area">
-    <div class="tables-wrapper">
-        <div class="green-border-outer">
-            <div class="green-border-inner">
-                <table id="table-left">
-                    <colgroup>
-                        <col style="width: 60%;"><col style="width: 20%;"><col style="width: 20%;">
-                    </colgroup>
-                    <thead><tr><th>Position</th><th>Remote Status</th><th>Alarm Status</th></tr></thead>
-                    <tbody id="tbody-left"></tbody>
-                </table>
-            </div>
-        </div>
+void setup() {
+  Serial.begin(115200);
+  
+  // 1. Initialize EEPROM and read saved device name
+  EEPROM.begin(512);
+  if (EEPROM.read(0) != 255) { // Check if EEPROM was previously written
+    for (int i = 0; i < 32; i++) {
+      moduleName[i] = EEPROM.read(i);
+    }
+    moduleName[32] = '\0';
+  }
 
-        <div class="green-border-outer">
-            <div class="green-border-inner">
-                <table id="table-right">
-                    <colgroup>
-                        <col style="width: 60%;"><col style="width: 20%;"><col style="width: 20%;">
-                    </colgroup>
-                    <thead><tr><th>Position</th><th>Remote Status</th><th>Alarm Status</th></tr></thead>
-                    <tbody id="tbody-right"></tbody>
-                </table>
-            </div>
-        </div>
-    </div>
-</div>
+  // 2. Setup WiFiManager and add the custom Name parameter
+  WiFiManager wifiManager;
+  WiFiManagerParameter custom_module_name("name", "Device Position Name", moduleName, 32);
+  wifiManager.addParameter(&custom_module_name);
 
-<script>
-    const badge = document.getElementById('conn-badge');
-    const badgeText = document.getElementById('conn-text');
-    const spinner = document.getElementById('conn-spinner');
+  // UNCOMMENT the line below and upload once if you need to force the 
+  // captive portal to appear so you can test the new naming feature!
+  // wifiManager.resetSettings();
+
+  wifiManager.autoConnect("Alarm_Setup_AP");
+  
+  // 3. Save the new name to EEPROM if the user changed it in the web portal
+  strcpy(moduleName, custom_module_name.getValue());
+  for (int i = 0; i < 32; i++) {
+    EEPROM.write(i, moduleName[i]);
+  }
+  EEPROM.commit();
+
+  Serial.println("\nWiFi Connected!");
+  Serial.print("Device Name: "); Serial.println(moduleName);
+  Serial.print("IP Address: "); Serial.println(WiFi.localIP());
+
+  mySwitch.enableReceive(digitalPinToInterrupt(D2)); 
+}
+
+void loop() {
+  if (mySwitch.available()) {
+    long rfCode = mySwitch.getReceivedValue();
+    if (rfCode != 0) {
+      Serial.print("Alarm Triggered! RF Code: ");
+      Serial.println(rfCode);
+      sendToServer("alarm", String(rfCode));
+      delay(2000); 
+    }
+    mySwitch.resetAvailable();
+  }
+
+  if (millis() - lastHeartbeat >= heartbeatInterval) {
+    sendToServer("heartbeat", "none");
+    lastHeartbeat = millis();
+  }
+}
+
+void sendToServer(String type, String code) {
+  if (WiFi.status() == WL_CONNECTED) {
+    WiFiClientSecure client;
+    client.setInsecure(); // Skips certificate validation (required for free Render tiers)
     
-    let isConnected = false;
-    let evtSource = null;
-    let connectionTimeout = null;
+    HTTPClient http;
+    http.begin(client, serverUrl);
+    http.addHeader("Content-Type", "application/json");
 
-    function connectToServer() {
-        // Clean up existing connection if forcing a reconnect
-        if (evtSource) {
-            evtSource.close();
-        }
+    String payload = "{\"moduleId\":\"" + String(moduleName) + "\",\"type\":\"" + type + "\",\"code\":\"" + code + "\"}";
+    int httpResponseCode = http.POST(payload);
 
-        evtSource = new EventSource('/api/stream');
-
-        evtSource.onopen = () => {
-            isConnected = true;
-            clearTimeout(connectionTimeout);
-            spinner.style.display = 'none';
-            badgeText.textContent = 'Connected';
-            badge.className = 'connected';
-        };
-
-        evtSource.onerror = () => {
-            isConnected = false;
-            
-            // EventSource auto-retries in the background. We update UI to reflect this.
-            spinner.style.display = 'inline-block';
-            badgeText.textContent = 'Reconnecting...';
-            badge.className = '';
-            
-            // Start the 10-second timer to declare a harder failure if it doesn't reconnect fast
-            clearTimeout(connectionTimeout);
-            connectionTimeout = setTimeout(() => {
-                if (!isConnected) {
-                    spinner.style.display = 'none';
-                    badge.className = 'error';
-                    
-                    if (!navigator.onLine) {
-                        badgeText.textContent = 'No Internet';
-                    } else {
-                        badgeText.textContent = 'Server Problem';
-                    }
-                }
-            }, 10000);
-        };
-
-        evtSource.onmessage = (event) => {
-            const data = JSON.parse(event.data);
-            renderData(data);
-        };
+    if(httpResponseCode == 200) {
+      Serial.print("Cloud Synced. Response Code: ");
+      Serial.println(httpResponseCode);
+    } else {
+      Serial.print("Failed to sync. Response Code: ");
+      Serial.println(httpResponseCode);
     }
-
-    // --- INSTANT NETWORK DETECTION ---
-    
-    // Fires the exact moment the device loses Wi-Fi or Cellular connection
-    window.addEventListener('offline', () => {
-        isConnected = false;
-        clearTimeout(connectionTimeout);
-        spinner.style.display = 'none';
-        badge.className = 'error';
-        badgeText.textContent = 'No Internet';
-    });
-
-    // Fires the exact moment the device reconnects to Wi-Fi or Cellular
-    window.addEventListener('online', () => {
-        spinner.style.display = 'inline-block';
-        badge.className = '';
-        badgeText.textContent = 'Connecting...';
-        
-        // Force an immediate reconnect instead of waiting for the browser's background retry timer
-        connectToServer();
-    });
-
-    // --- RENDER LOGIC ---
-
-    function renderData(data) {
-        const entries = Object.entries(data);
-        
-        const leftSideData = entries.slice(0, 8);
-        const rightSideData = entries.slice(8, 16);
-        
-        const leftSide = fillRows(leftSideData, 8);
-        const rightSide = fillRows(rightSideData, 8);
-
-        document.getElementById('tbody-left').innerHTML = buildHTML(leftSide);
-        document.getElementById('tbody-right').innerHTML = buildHTML(rightSide);
-    }
-
-    function fillRows(arr, length) {
-        const copy = [...arr];
-        while(copy.length < length) copy.push(null);
-        return copy;
-    }
-
-    function buildHTML(rows) {
-        let html = '';
-        rows.forEach(row => {
-            if (!row) {
-                html += `<tr><td></td><td></td><td></td></tr>`;
-            } else {
-                const [name, info] = row;
-                
-                const isOnline = (info.status === 'online');
-                const remoteClass = isOnline ? 'status-green' : 'status-orange';
-                const remoteText = isOnline ? 'Online' : 'Offline';
-                
-                let alarmClass = remoteClass;
-                let alarmText = isOnline ? 'Online' : 'Offline';
-                
-                if (info.alarmTriggered) {
-                    alarmClass = 'status-red';
-                    alarmText = 'ALARM';
-                }
-
-                html += `<tr>
-                    <td>${name}</td>
-                    <td class="${remoteClass}">${remoteText}</td>
-                    <td class="${alarmClass}">${alarmText}</td>
-                </tr>`;
-            }
-        });
-        return html;
-    }
-
-    function silenceAlarms() {
-        fetch('/api/reset-all', { method: 'POST' });
-    }
-
-    // Boot up
-    renderData({});
-    connectToServer();
-</script>
-</body>
-</html>
+    http.end();
+  }
+}
