@@ -6,20 +6,14 @@ const app = express();
 app.use(express.json());
 app.use(cors());
 
-// Force absolute path for the public folder
 app.use(express.static(path.join(__dirname, 'public'))); 
 
-// Explicit fallback to serve index.html on the main route
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// Initial system state
-let systemStatus = {
-    "PRC 13th": { status: "online", lastSeen: Date.now(), alarmTriggered: false, rfCode: null },
-    "Fuji 4th Accounts": { status: "offline", lastSeen: 0, alarmTriggered: false, rfCode: null }
-};
-
+// REMOVED false devices. The system now starts completely blank.
+let systemStatus = {}; 
 let clients = [];
 
 function broadcast() {
@@ -27,7 +21,6 @@ function broadcast() {
     clients.forEach(client => client.write(payload));
 }
 
-// 1. SSE Real-Time Data Stream Endpoint
 app.get('/api/stream', (req, res) => {
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
@@ -41,7 +34,6 @@ app.get('/api/stream', (req, res) => {
     });
 });
 
-// 2. Endpoint for Wemos D1 modules to POST status/alarms
 app.post('/api/alarm', (req, res) => {
     const { moduleId, type, code } = req.body;
     
@@ -61,7 +53,6 @@ app.post('/api/alarm', (req, res) => {
     res.sendStatus(200);
 });
 
-// 3. Endpoint for Dashboard "Silence All Alarms" button
 app.post('/api/reset-all', (req, res) => {
     for (let mod in systemStatus) {
         systemStatus[mod].alarmTriggered = false;
@@ -71,7 +62,6 @@ app.post('/api/reset-all', (req, res) => {
     res.sendStatus(200);
 });
 
-// 4. Background tracker to flag nodes as offline if heartbeat stops (>90s)
 setInterval(() => {
     let changed = false;
     const now = Date.now();
