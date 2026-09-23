@@ -277,8 +277,9 @@
         const leftSide = fillRows(entries.slice(0, 8), 8);
         const rightSide = fillRows(entries.slice(8, 16), 8);
 
-        document.getElementById('tbody-left').innerHTML = buildHTML(leftSide);
-        document.getElementById('tbody-right').innerHTML = buildHTML(rightSide);
+        // Pass anyAlarmActive to the buildHTML function so all tables know about the global state
+        document.getElementById('tbody-left').innerHTML = buildHTML(leftSide, anyAlarmActive);
+        document.getElementById('tbody-right').innerHTML = buildHTML(rightSide, anyAlarmActive);
     }
 
     function fillRows(arr, length) {
@@ -287,7 +288,7 @@
         return copy;
     }
 
-    function buildHTML(rows) {
+    function buildHTML(rows, globalAlarmActive) {
         let html = '';
         rows.forEach(row => {
             if (!row) {
@@ -302,10 +303,20 @@
                 let alarmText = isOnline ? 'Online' : 'Offline';
                 let positionClass = '';
                 
+                // 1. Only the specific node that triggered the alarm flashes its POSITION name
                 if (info.alarmTriggered) {
-                    alarmClass = 'status-alarm';
                     positionClass = 'status-alarm'; 
-                    alarmText = 'ALARM ON';
+                }
+
+                // 2. If ANY alarm is active, ALL online nodes go into ALARM ON status
+                if (globalAlarmActive) {
+                    if (isOnline) {
+                        alarmClass = 'status-alarm';
+                        alarmText = 'ALARM ON';
+                    } else {
+                        alarmClass = 'status-orange';
+                        alarmText = 'ERROR (Offline)';
+                    }
                 }
 
                 html += `<tr>
