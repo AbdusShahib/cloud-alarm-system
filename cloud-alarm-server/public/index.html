@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Cloud Alarm Dashboard</title>
     <style>
-        /* Full Screen Dark Theme & Layout */
         body { 
             margin: 0; 
             font-family: system-ui, sans-serif; 
@@ -63,12 +62,19 @@
         
         .status-green { background-color: #578a51; color: white; font-weight: 600; }
         .status-orange { background-color: #d17a43; color: white; font-weight: 600; }
-        .status-red { background-color: #e54d42; color: white; font-weight: 600; animation: flash 1s infinite alternate; }
         
-        @keyframes flash { from { opacity: 1; } to { opacity: 0.6; } }
+        /* Red and Yellow Flashing Sequence for Alarms */
+        .status-alarm { 
+            font-weight: 700; color: #000; 
+            animation: redYellowFlash 0.8s infinite alternate; 
+        }
+        @keyframes redYellowFlash { 
+            0% { background-color: #e54d42; color: #fff; } 
+            100% { background-color: #f1c40f; color: #000; } 
+        }
     </style>
 </head>
-<body>
+<body onclick="initAudioContext()"> <!-- Unlocks browser audio policy on first click -->
 
 <div class="header-bg">
     <div class="title-text">Live status of all room alarm nodes</div>
@@ -90,7 +96,7 @@
             <div class="green-border-inner">
                 <table id="table-left">
                     <colgroup>
-                        <col style="width: 60%;"><col style="width: 20%;"><col style="width: 20%;">
+                        <col style="width: 56%;"><col style="width: 22%;"><col style="width: 22%;">
                     </colgroup>
                     <thead><tr><th>Position</th><th>Remote Status</th><th>Alarm Status</th></tr></thead>
                     <tbody id="tbody-left"></tbody>
@@ -102,7 +108,7 @@
             <div class="green-border-inner">
                 <table id="table-right">
                     <colgroup>
-                        <col style="width: 60%;"><col style="width: 20%;"><col style="width: 20%;">
+                        <col style="width: 56%;"><col style="width: 22%;"><col style="width: 22%;">
                     </colgroup>
                     <thead><tr><th>Position</th><th>Remote Status</th><th>Alarm Status</th></tr></thead>
                     <tbody id="tbody-right"></tbody>
@@ -120,12 +126,51 @@
     let isConnected = false;
     let evtSource = null;
     let connectionTimeout = null;
+    let audioCtx = null;
+    let alarmInterval = null;
+
+    // Browser audio context unlock
+    function initAudioContext() {
+        if (!audioCtx) {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+    }
+
+    // Play a pulsing alarm siren through the device speaker
+    function playAlarmBeep() {
+        if (!audioCtx) return;
+        if (audioCtx.state === 'suspended') {
+            audioCtx.resume();
+        }
+        
+        let osc = audioCtx.createOscillator();
+        let gain = audioCtx.createGain();
+        
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(400, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(880, audioCtx.currentTime + 0.2);
+        
+        gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
+        
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.4);
+    }
+
+    function triggerSiren(shouldRing) {
+        if (shouldRing && !alarmInterval) {
+            alarmInterval = setInterval(playAlarmBeep, 500);
+        } else if (!shouldRing && alarmInterval) {
+            clearInterval(alarmInterval);
+            alarmInterval = null;
+        }
+    }
 
     function connectToServer() {
-        // Clean up existing connection if forcing a reconnect
-        if (evtSource) {
-            evtSource.close();
-        }
+        if (evtSource) evtSource.close();
 
         evtSource = new EventSource('/api/stream');
 
@@ -139,19 +184,15 @@
 
         evtSource.onerror = () => {
             isConnected = false;
-            
-            // EventSource auto-retries in the background. We update UI to reflect this.
             spinner.style.display = 'inline-block';
             badgeText.textContent = 'Reconnecting...';
             badge.className = '';
             
-            // Start the 10-second timer to declare a harder failure if it doesn't reconnect fast
             clearTimeout(connectionTimeout);
             connectionTimeout = setTimeout(() => {
                 if (!isConnected) {
                     spinner.style.display = 'none';
                     badge.className = 'error';
-                    
                     if (!navigator.onLine) {
                         badgeText.textContent = 'No Internet';
                     } else {
@@ -167,9 +208,6 @@
         };
     }
 
-    // --- INSTANT NETWORK DETECTION ---
-    
-    // Fires the exact moment the device loses Wi-Fi or Cellular connection
     window.addEventListener('offline', () => {
         isConnected = false;
         clearTimeout(connectionTimeout);
@@ -178,21 +216,24 @@
         badgeText.textContent = 'No Internet';
     });
 
-    // Fires the exact moment the device reconnects to Wi-Fi or Cellular
     window.addEventListener('online', () => {
         spinner.style.display = 'inline-block';
         badge.className = '';
         badgeText.textContent = 'Connecting...';
-        
-        // Force an immediate reconnect instead of waiting for the browser's background retry timer
         connectToServer();
     });
 
-    // --- RENDER LOGIC ---
-
     function renderData(data) {
         const entries = Object.entries(data);
-        
+        let anyAlarmActive = false;
+
+        entries.forEach(([name, info]) => {
+            if (info.alarmTriggered) anyAlarmActive = true;
+        });
+
+        // Trigger or silence the device speaker siren
+        triggerSiren(anyAlarmActive);
+
         const leftSideData = entries.slice(0, 8);
         const rightSideData = entries.slice(8, 16);
         
@@ -216,7 +257,6 @@
                 html += `<tr><td></td><td></td><td></td></tr>`;
             } else {
                 const [name, info] = row;
-                
                 const isOnline = (info.status === 'online');
                 const remoteClass = isOnline ? 'status-green' : 'status-orange';
                 const remoteText = isOnline ? 'Online' : 'Offline';
@@ -224,9 +264,10 @@
                 let alarmClass = remoteClass;
                 let alarmText = isOnline ? 'Online' : 'Offline';
                 
+                // Active Alarm Styling Change
                 if (info.alarmTriggered) {
-                    alarmClass = 'status-red';
-                    alarmText = 'ALARM';
+                    alarmClass = 'status-alarm';
+                    alarmText = 'ALARM ON';
                 }
 
                 html += `<tr>
@@ -240,10 +281,10 @@
     }
 
     function silenceAlarms() {
+        triggerSiren(false);
         fetch('/api/reset-all', { method: 'POST' });
     }
 
-    // Boot up
     renderData({});
     connectToServer();
 </script>
