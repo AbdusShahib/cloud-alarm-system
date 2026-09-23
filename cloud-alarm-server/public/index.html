@@ -7,8 +7,14 @@
     <style>
         body { margin: 0; font-family: system-ui, sans-serif; background-color: #12141d; color: #ffffff; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
         .header-bg { padding: 20px 30px; flex-shrink: 0; }
-        .title-text { color: #6d809c; font-size: 15px; margin-bottom: 25px; font-weight: 600; }
-        .controls-row { display: flex; align-items: center; gap: 20px; margin-bottom: 20px; }
+        
+        /* --- NEW ALIGNED TOP ROW LAYOUT --- */
+        .top-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; }
+        .top-left { display: flex; flex-direction: column; }
+        .top-right { display: flex; align-items: center; justify-content: flex-end; }
+        
+        .title-text { color: #6d809c; font-size: 15px; margin-bottom: 15px; font-weight: 600; }
+        .controls-row { display: flex; align-items: center; gap: 20px; }
         
         #conn-badge { display: flex; align-items: center; background-color: #1a1a1a; border: 1px solid #6d809c; color: #6d809c; padding: 6px 18px; border-radius: 20px; font-size: 13px; font-weight: 600; }
         #conn-badge.connected { color: #4CAF50; border-color: #4CAF50; }
@@ -16,14 +22,14 @@
         .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.3); border-radius: 50%; border-top-color: currentColor; animation: spin 1s linear infinite; margin-right: 8px; }
         @keyframes spin { to { transform: rotate(360deg); } }
 
-        .btn-silence { background-color: #e54d42; color: white; border: none; padding: 8px 24px; border-radius: 6px; font-weight: 600; cursor: pointer; transition: 0.2s; }
+        .btn-silence { background-color: #e54d42; color: white; border: none; padding: 8px 24px; border-radius: 6px; font-weight: 600; cursor: pointer; transition: 0.2s; height: 34px;}
         .btn-silence:hover { background-color: #ff574a; }
+        
+        /* --- BIG BOLD CLOCK --- */
+        #live-clock { font-family: monospace; font-size: 52px; color: #578a51; font-weight: 900; letter-spacing: 2px; margin: 0; line-height: 1; text-shadow: 0 0 15px rgba(87, 138, 81, 0.2); }
         
         .event-header { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 1px solid #2a2e3d; padding-bottom: 8px; margin-bottom: 10px; }
         .event-header span { color: #ffffff; font-weight: 700; font-size: 16px; margin-bottom: 6px; }
-        
-        .export-container { display: flex; flex-direction: column; align-items: flex-end; }
-        #live-clock { font-family: monospace; font-size: 15px; color: #578a51; margin-bottom: 6px; font-weight: 700; letter-spacing: 1px; }
         
         .btn-export { background-color: #2a2e3d; color: #a1b0c8; border: 1px solid #3c4257; padding: 8px 12px; border-radius: 4px; font-weight: 600; cursor: pointer; font-size: 13px; }
         .btn-export:hover { background-color: #3c4257; color: white; }
@@ -53,18 +59,23 @@
 <body onclick="initAudioContext()">
 
 <div class="header-bg">
-    <div class="title-text">Live status of all room alarm nodes</div>
-    <div class="controls-row">
-        <div id="conn-badge"><span class="spinner" id="conn-spinner"></span><span id="conn-text">Connecting...</span></div>
-        <button class="btn-silence" onclick="silenceAlarms()">Silence All Alarms</button>
+    <!-- NEW FLEXBOX TOP ROW -->
+    <div class="top-row">
+        <div class="top-left">
+            <div class="title-text">Live status of all room alarm nodes</div>
+            <div class="controls-row">
+                <div id="conn-badge"><span class="spinner" id="conn-spinner"></span><span id="conn-text">Connecting...</span></div>
+                <button class="btn-silence" onclick="silenceAlarms()">Silence All Alarms</button>
+            </div>
+        </div>
+        <div class="top-right">
+            <div id="live-clock">00:00:00</div>
+        </div>
     </div>
     
     <div class="event-header">
         <span>Event Log</span>
-        <div class="export-container">
-            <div id="live-clock">00:00:00</div>
-            <button class="btn-export" onclick="exportEventLog()">Export Event Log</button>
-        </div>
+        <button class="btn-export" onclick="exportEventLog()">Export Event Log</button>
     </div>
     <div class="event-log-window" id="event-log"></div>
 </div>
