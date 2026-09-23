@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Cloud Alarm Dashboard</title>
     <style>
-        /* --- GLOBAL STYLES --- */
         body { 
             margin: 0; 
             font-family: system-ui, sans-serif; 
@@ -16,219 +15,56 @@
             flex-direction: column; 
             overflow: hidden; 
         }
-
-        /* --- HEADER AREA --- */
-        .header-bg { 
-            padding: 20px 30px; 
-            flex-shrink: 0; 
-        }
         
-        .top-row { 
-            display: flex; 
-            justify-content: space-between; 
-            align-items: center; 
-            margin-bottom: 25px; 
-        }
+        .header-bg { padding: 20px 30px 10px; flex-shrink: 0; }
+        .title-text { color: #6d809c; font-size: 15px; margin-bottom: 25px; font-weight: 600; }
         
-        .top-left { 
-            display: flex; 
-            flex-direction: column; 
-        }
+        .top-row { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 25px; }
+        .top-left { display: flex; flex-direction: column; }
+        .top-right { display: flex; flex-direction: column; align-items: flex-end; }
         
-        .top-right { 
-            display: flex; 
-            align-items: center; 
-            justify-content: flex-end; 
-        }
+        .controls-row { display: flex; align-items: center; gap: 20px; }
         
-        .title-text { 
-            color: #6d809c; 
-            font-size: 15px; 
-            margin-bottom: 15px; 
-            font-weight: 600; 
-        }
-        
-        .controls-row { 
-            display: flex; 
-            align-items: center; 
-            gap: 20px; 
-        }
-
-        /* --- CONNECTION BADGE & BUTTONS --- */
-        #conn-badge { 
-            display: flex; 
-            align-items: center; 
-            background-color: #1a1a1a; 
-            border: 1px solid #6d809c; 
-            color: #6d809c; 
-            padding: 6px 18px; 
-            border-radius: 20px; 
-            font-size: 13px; 
-            font-weight: 600; 
-        }
-        
+        #conn-badge { display: flex; align-items: center; background-color: #1a1a1a; border: 1px solid #6d809c; color: #6d809c; padding: 6px 18px; border-radius: 20px; font-size: 13px; font-weight: 600; }
         #conn-badge.connected { color: #4CAF50; border-color: #4CAF50; }
         #conn-badge.error { color: #F44336; border-color: #F44336; }
-        
-        .spinner { 
-            display: inline-block; 
-            width: 14px; 
-            height: 14px; 
-            border: 2px solid rgba(255,255,255,0.3); 
-            border-radius: 50%; 
-            border-top-color: currentColor; 
-            animation: spin 1s linear infinite; 
-            margin-right: 8px; 
-        }
-        
-        @keyframes spin { 
-            to { transform: rotate(360deg); } 
-        }
+        .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.3); border-radius: 50%; border-top-color: currentColor; animation: spin 1s linear infinite; margin-right: 8px; }
+        @keyframes spin { to { transform: rotate(360deg); } }
 
-        .btn-silence { 
-            background-color: #e54d42; 
-            color: white; 
-            border: none; 
-            padding: 8px 24px; 
-            border-radius: 6px; 
-            font-weight: 600; 
-            cursor: pointer; 
-            transition: 0.2s; 
-            height: 34px;
-        }
+        .btn-silence { background-color: #e54d42; color: white; border: none; padding: 8px 24px; border-radius: 6px; font-weight: 600; cursor: pointer; transition: 0.2s; height: 34px; }
+        .btn-silence:hover { background-color: #ff574a; }
         
-        .btn-silence:hover { 
-            background-color: #ff574a; 
-        }
-
-        /* --- LIVE CLOCK --- */
-        #live-clock { 
-            font-family: monospace; 
-            font-size: 52px; 
-            color: #578a51; 
-            font-weight: 900; 
-            letter-spacing: 2px; 
-            margin: 0; 
-            line-height: 1; 
-            text-shadow: 0 0 15px rgba(87, 138, 81, 0.2); 
-        }
-
-        /* --- EVENT LOG SYSTEM --- */
-        .event-header { 
-            display: flex; 
-            justify-content: space-between; 
-            align-items: flex-end; 
-            border-bottom: 1px solid #2a2e3d; 
-            padding-bottom: 8px; 
-            margin-bottom: 10px; 
-        }
+        #live-clock { font-family: monospace; font-size: 52px; color: #578a51; font-weight: 900; letter-spacing: 2px; margin: 0; line-height: 1; text-shadow: 0 0 15px rgba(87, 138, 81, 0.2); }
+        #live-date { font-family: monospace; font-size: 16px; color: #6d809c; font-weight: 600; margin-top: 12px; letter-spacing: 1px; text-transform: uppercase; }
         
-        .event-header span { 
-            color: #ffffff; 
-            font-weight: 700; 
-            font-size: 16px; 
-            margin-bottom: 6px; 
-        }
+        .event-header { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 1px solid #2a2e3d; padding-bottom: 8px; margin-bottom: 10px; }
+        .event-header span { color: #ffffff; font-weight: 700; font-size: 16px; margin-bottom: 6px; }
         
-        .btn-export { 
-            background-color: #2a2e3d; 
-            color: #a1b0c8; 
-            border: 1px solid #3c4257; 
-            padding: 8px 12px; 
-            border-radius: 4px; 
-            font-weight: 600; 
-            cursor: pointer; 
-            font-size: 13px; 
-        }
+        .btn-export { background-color: #2a2e3d; color: #a1b0c8; border: 1px solid #3c4257; padding: 8px 12px; border-radius: 4px; font-weight: 600; cursor: pointer; font-size: 13px; }
+        .btn-export:hover { background-color: #3c4257; color: white; }
         
-        .btn-export:hover { 
-            background-color: #3c4257; 
-            color: white; 
-        }
-        
-        .event-log-window { 
-            height: 100px; 
-            overflow-y: auto; 
-            background: #0b0c10; 
-            border: 1px solid #2a2e3d; 
-            border-radius: 4px; 
-            padding: 10px; 
-            font-family: monospace; 
-            font-size: 13px; 
-            color: #a1b0c8; 
-            margin-bottom: 20px; 
-        }
-        
+        /* The wrapper forces the log to stretch dynamically to fill empty space */
+        .log-wrapper { flex-grow: 1; display: flex; flex-direction: column; padding: 0 30px; min-height: 0; margin-bottom: 20px; }
+        .event-log-window { flex-grow: 1; overflow-y: auto; background: #0b0c10; border: 1px solid #2a2e3d; border-radius: 4px; padding: 10px; font-family: monospace; font-size: 13px; color: #a1b0c8; margin: 0; }
         .event-log-window p { margin: 4px 0; }
         .log-time { color: #578a51; margin-right: 8px; }
         .log-err { color: #e54d42; }
         .log-warn { color: #f1c40f; }
 
-        /* --- TABLES LAYOUT --- */
-        .table-area { 
-            flex-grow: 1; 
-            display: flex; 
-            align-items: flex-end; 
-            justify-content: center; 
-            padding: 10px 30px 40px; 
-        }
+        .table-area { flex-shrink: 0; display: flex; width: 100%; box-sizing: border-box; padding: 0px 30px 40px; }
+        .tables-wrapper { display: flex; width: 100%; gap: 30px; }
+        .green-border-outer { flex: 1; border: 2px solid #578a51; padding: 3px; background-color: #12141d; }
+        .green-border-inner { border: 1px solid #578a51; background-color: #1e212b; height: 100%; }
         
-        .tables-wrapper { 
-            display: flex; 
-            width: 100%; 
-            gap: 30px; 
-        }
+        table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+        th, td { border: 1px solid #2a2e3d; padding: 12px 15px; text-align: left; font-size: 14px; color: #ffffff; height: 22px; }
+        th { font-weight: 800; background-color: #252936; color: #a1b0c8; text-transform: uppercase; letter-spacing: 0.5px; }
         
-        .green-border-outer { 
-            flex: 1; 
-            border: 2px solid #578a51; 
-            padding: 3px; 
-            background-color: #12141d; 
-        }
-        
-        .green-border-inner { 
-            border: 1px solid #578a51; 
-            background-color: #1e212b; 
-            height: 100%; 
-        }
-        
-        table { 
-            width: 100%; 
-            border-collapse: collapse; 
-            table-layout: fixed; 
-        }
-        
-        th, td { 
-            border: 1px solid #2a2e3d; 
-            padding: 12px 15px; 
-            text-align: left; 
-            font-size: 14px; 
-            color: #ffffff; 
-            height: 22px; 
-        }
-        
-        th { 
-            font-weight: 800; 
-            background-color: #252936; 
-            color: #a1b0c8; 
-            text-transform: uppercase; 
-            letter-spacing: 0.5px; 
-        }
-        
-        /* --- STATUS COLORS & ANIMATIONS --- */
         .status-green { background-color: #578a51; color: white; font-weight: 600; }
         .status-orange { background-color: #d17a43; color: white; font-weight: 600; }
         
-        .status-alarm { 
-            font-weight: 700; 
-            color: #000; 
-            animation: redYellowFlash 0.8s infinite alternate; 
-        }
-        
-        @keyframes redYellowFlash { 
-            0% { background-color: #e54d42; color: #fff; } 
-            100% { background-color: #f1c40f; color: #000; } 
-        }
+        .status-alarm { font-weight: 700; color: #000; animation: redYellowFlash 0.8s infinite alternate; }
+        @keyframes redYellowFlash { 0% { background-color: #e54d42; color: #fff; } 100% { background-color: #f1c40f; color: #000; } }
     </style>
 </head>
 <body onclick="initAudioContext()">
@@ -238,15 +74,13 @@
         <div class="top-left">
             <div class="title-text">Live status of all room alarm nodes</div>
             <div class="controls-row">
-                <div id="conn-badge">
-                    <span class="spinner" id="conn-spinner"></span>
-                    <span id="conn-text">Connecting...</span>
-                </div>
+                <div id="conn-badge"><span class="spinner" id="conn-spinner"></span><span id="conn-text">Connecting...</span></div>
                 <button class="btn-silence" onclick="silenceAlarms()">Silence All Alarms</button>
             </div>
         </div>
         <div class="top-right">
             <div id="live-clock">00:00:00</div>
+            <div id="live-date">---</div>
         </div>
     </div>
     
@@ -254,75 +88,40 @@
         <span>Event Log</span>
         <button class="btn-export" onclick="exportEventLog()">Export Event Log</button>
     </div>
-    
+</div>
+
+<div class="log-wrapper">
     <div class="event-log-window" id="event-log"></div>
 </div>
 
 <div class="table-area">
     <div class="tables-wrapper">
-        <div class="green-border-outer">
-            <div class="green-border-inner">
-                <table id="table-left">
-                    <colgroup>
-                        <col style="width: 56%;">
-                        <col style="width: 22%;">
-                        <col style="width: 22%;">
-                    </colgroup>
-                    <thead>
-                        <tr>
-                            <th>Position</th>
-                            <th>Remote Status</th>
-                            <th>Alarm Status</th>
-                        </tr>
-                    </thead>
-                    <tbody id="tbody-left"></tbody>
-                </table>
-            </div>
-        </div>
+        <div class="green-border-outer"><div class="green-border-inner">
+            <table id="table-left"><colgroup><col style="width: 56%;"><col style="width: 22%;"><col style="width: 22%;"></colgroup>
+                <thead><tr><th>Position</th><th>Remote Status</th><th>Alarm Status</th></tr></thead><tbody id="tbody-left"></tbody>
+            </table>
+        </div></div>
 
-        <div class="green-border-outer">
-            <div class="green-border-inner">
-                <table id="table-right">
-                    <colgroup>
-                        <col style="width: 56%;">
-                        <col style="width: 22%;">
-                        <col style="width: 22%;">
-                    </colgroup>
-                    <thead>
-                        <tr>
-                            <th>Position</th>
-                            <th>Remote Status</th>
-                            <th>Alarm Status</th>
-                        </tr>
-                    </thead>
-                    <tbody id="tbody-right"></tbody>
-                </table>
-            </div>
-        </div>
+        <div class="green-border-outer"><div class="green-border-inner">
+            <table id="table-right"><colgroup><col style="width: 56%;"><col style="width: 22%;"><col style="width: 22%;"></colgroup>
+                <thead><tr><th>Position</th><th>Remote Status</th><th>Alarm Status</th></tr></thead><tbody id="tbody-right"></tbody>
+            </table>
+        </div></div>
     </div>
 </div>
 
 <script>
-    // ==========================================
-    // 1. LIVE CLOCK SYSTEM
-    // ==========================================
     function updateClock() {
         const now = new Date();
-        const timeStr = now.toLocaleTimeString([], { 
-            hour12: false, 
-            hour: '2-digit', 
-            minute: '2-digit', 
-            second: '2-digit' 
-        });
+        const timeStr = now.toLocaleTimeString([], { hour12: false, hour: '2-digit', minute:'2-digit', second:'2-digit' });
         document.getElementById('live-clock').textContent = timeStr;
+        
+        const dateOptions = { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' };
+        document.getElementById('live-date').textContent = now.toLocaleDateString(undefined, dateOptions);
     }
-    
     setInterval(updateClock, 1000);
-    updateClock(); // Initial call
+    updateClock();
 
-    // ==========================================
-    // 2. GLOBAL VARIABLES
-    // ==========================================
     const badge = document.getElementById('conn-badge');
     const badgeText = document.getElementById('conn-text');
     const spinner = document.getElementById('conn-spinner');
@@ -337,19 +136,11 @@
     let eventHistory = []; 
     let previousNodeStates = {}; 
 
-    // ==========================================
-    // 3. EVENT LOG SYSTEM
-    // ==========================================
     function addLog(msg, type = 'normal') {
         const now = new Date();
-        const timeStr = now.toLocaleTimeString([], { 
-            hour12: false, 
-            hour: '2-digit', 
-            minute: '2-digit', 
-            second: '2-digit' 
-        });
-        
+        const timeStr = now.toLocaleTimeString([], { hour12: false, hour: '2-digit', minute:'2-digit', second:'2-digit' });
         const rawLog = `[${now.toISOString().split('T')[0]} ${timeStr}] ${msg}`;
+        
         eventHistory.push(rawLog);
         
         let colorClass = '';
@@ -363,73 +154,46 @@
 
     function exportEventLog() {
         if (eventHistory.length === 0) {
-            return alert("Log is empty.");
+            console.warn("Log is empty, nothing to export.");
+            return;
         }
-        
         const blob = new Blob([eventHistory.join('\n')], { type: 'text/plain' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
-        
         a.href = url;
         a.download = `Alarm_Log_${new Date().toISOString().slice(0,10)}.txt`;
         a.click();
         URL.revokeObjectURL(url);
     }
 
-    // ==========================================
-    // 4. AUDIO (SIREN) SYSTEM
-    // ==========================================
     function initAudioContext() {
-        if (!audioCtx) {
-            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        }
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     }
-    
     function playAlarmBeep() {
         if (!audioCtx) return;
-        if (audioCtx.state === 'suspended') {
-            audioCtx.resume();
-        }
-        
-        let osc = audioCtx.createOscillator(); 
-        let gain = audioCtx.createGain();
-        
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        let osc = audioCtx.createOscillator(); let gain = audioCtx.createGain();
         osc.type = 'sawtooth';
         osc.frequency.setValueAtTime(400, audioCtx.currentTime);
         osc.frequency.exponentialRampToValueAtTime(880, audioCtx.currentTime + 0.2);
-        
         gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
         gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
-        
-        osc.connect(gain); 
-        gain.connect(audioCtx.destination);
-        
-        osc.start(); 
-        osc.stop(audioCtx.currentTime + 0.4);
+        osc.connect(gain); gain.connect(audioCtx.destination);
+        osc.start(); osc.stop(audioCtx.currentTime + 0.4);
     }
-    
     function triggerSiren(shouldRing) {
-        if (shouldRing && !alarmInterval) {
-            alarmInterval = setInterval(playAlarmBeep, 500);
-        } else if (!shouldRing && alarmInterval) { 
-            clearInterval(alarmInterval); 
-            alarmInterval = null; 
-        }
+        if (shouldRing && !alarmInterval) alarmInterval = setInterval(playAlarmBeep, 500);
+        else if (!shouldRing && alarmInterval) { clearInterval(alarmInterval); alarmInterval = null; }
     }
 
-    // ==========================================
-    // 5. SERVER CONNECTION (SSE)
-    // ==========================================
     function connectToServer() {
         if (evtSource) evtSource.close();
         evtSource = new EventSource('/api/stream');
 
         evtSource.onopen = () => {
             if (!isConnected) addLog("Dashboard connected to server.", "normal");
-            
             isConnected = true;
             clearTimeout(connectionTimeout);
-            
             spinner.style.display = 'none';
             badgeText.textContent = 'Connected';
             badge.className = 'connected';
@@ -437,7 +201,6 @@
 
         evtSource.onerror = () => {
             isConnected = false;
-            
             spinner.style.display = 'inline-block';
             badgeText.textContent = 'Reconnecting...';
             badge.className = '';
@@ -447,7 +210,6 @@
                 if (!isConnected) {
                     spinner.style.display = 'none';
                     badge.className = 'error';
-                    
                     if (!navigator.onLine) {
                         badgeText.textContent = 'No Internet';
                         addLog("Dashboard offline: No Internet access.", "error");
@@ -465,7 +227,6 @@
         };
     }
 
-    // --- Offline/Online Network Listeners ---
     window.addEventListener('offline', () => {
         isConnected = false;
         clearTimeout(connectionTimeout);
@@ -483,21 +244,14 @@
         connectToServer();
     });
 
-    // ==========================================
-    // 6. UI RENDERING & LOGIC
-    // ==========================================
     function renderData(data) {
         const entries = Object.entries(data);
         let anyAlarmActive = false;
 
-        // Pass 1: Determine global alarm state and update logs
         entries.forEach(([name, info]) => {
-            if (info.alarmTriggered) {
-                anyAlarmActive = true;
-            }
+            if (info.alarmTriggered) anyAlarmActive = true;
             
             const prev = previousNodeStates[name];
-            
             if (!prev) {
                 addLog(`Node detected: ${name} (${info.status.toUpperCase()})`);
             } else {
@@ -508,7 +262,6 @@
                         addLog(`Node ${name} came ONLINE`, 'normal');
                     }
                 }
-                
                 if (!prev.alarmTriggered && info.alarmTriggered) {
                     addLog(`ALARM TRIGGERED at ${name} (Code: ${info.rfCode})`, 'error');
                 }
@@ -516,35 +269,26 @@
                     addLog(`Alarm Silenced at ${name}`);
                 }
             }
-            // Save state for next comparison
             previousNodeStates[name] = JSON.parse(JSON.stringify(info));
         });
 
-        // Trigger local dashboard audio siren based on global state
         triggerSiren(anyAlarmActive);
 
-        // Split data into two columns (max 8 rows each)
         const leftSide = fillRows(entries.slice(0, 8), 8);
         const rightSide = fillRows(entries.slice(8, 16), 8);
 
-        // Pass the global alarm state down to the HTML builder
-        document.getElementById('tbody-left').innerHTML = buildHTML(leftSide, anyAlarmActive);
-        document.getElementById('tbody-right').innerHTML = buildHTML(rightSide, anyAlarmActive);
+        document.getElementById('tbody-left').innerHTML = buildHTML(leftSide);
+        document.getElementById('tbody-right').innerHTML = buildHTML(rightSide);
     }
 
-    // Helper: Fill empty rows if there are less than 8 devices in a column
     function fillRows(arr, length) {
         const copy = [...arr];
-        while (copy.length < length) {
-            copy.push(null);
-        }
+        while(copy.length < length) copy.push(null);
         return copy;
     }
 
-    // Main HTML Builder for the tables
-    function buildHTML(rows, anyAlarmActive) {
+    function buildHTML(rows) {
         let html = '';
-        
         rows.forEach(row => {
             if (!row) {
                 html += `<tr><td></td><td></td><td></td></tr>`;
@@ -558,23 +302,10 @@
                 let alarmText = isOnline ? 'Online' : 'Offline';
                 let positionClass = '';
                 
-                // Advanced Global Alarm Cell Rendering
-                if (anyAlarmActive) {
-                    if (info.alarmTriggered) {
-                        // This node initiated the alarm (All cells flash)
-                        positionClass = 'status-alarm';
-                        remoteClass = 'status-alarm';
-                        alarmClass = 'status-alarm';
-                        alarmText = 'ALARM ON';
-                    } else if (isOnline) {
-                        // Other online nodes join the alarm (Only alarm cell flashes)
-                        alarmClass = 'status-alarm';
-                        alarmText = 'ALARM ON';
-                    } else {
-                        // Offline nodes show ERROR
-                        alarmClass = 'status-orange'; 
-                        alarmText = 'ERROR';
-                    }
+                if (info.alarmTriggered) {
+                    alarmClass = 'status-alarm';
+                    positionClass = 'status-alarm'; 
+                    alarmText = 'ALARM ON';
                 }
 
                 html += `<tr>
@@ -584,24 +315,18 @@
                 </tr>`;
             }
         });
-        
         return html;
     }
 
-    // ==========================================
-    // 7. ACTIONS & INITIALIZATION
-    // ==========================================
     function silenceAlarms() {
         triggerSiren(false);
         fetch('/api/reset-all', { method: 'POST' });
         addLog("Global 'Silence All Alarms' command issued.", "warn");
     }
 
-    // Boot sequence
     addLog("Dashboard initialized.", "normal");
     renderData({});
     connectToServer();
-
 </script>
 </body>
 </html>
