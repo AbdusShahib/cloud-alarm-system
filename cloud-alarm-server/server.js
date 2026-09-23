@@ -5,14 +5,12 @@ const app = express();
 
 app.use(express.json());
 app.use(cors());
-
 app.use(express.static(path.join(__dirname, 'public'))); 
 
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// REMOVED false devices. The system now starts completely blank.
 let systemStatus = {}; 
 let clients = [];
 
@@ -66,13 +64,13 @@ setInterval(() => {
     let changed = false;
     const now = Date.now();
     for (let mod in systemStatus) {
-        if (systemStatus[mod].status === 'online' && (now - systemStatus[mod].lastSeen > 90000)) {
+        if (systemStatus[mod].status === 'online' && (now - systemStatus[mod].lastSeen > 25000)) {
             systemStatus[mod].status = "offline";
             changed = true;
         }
     }
     if (changed) broadcast();
-}, 5000);
+}, 3000);
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Alarm server running on port ${PORT}`));
