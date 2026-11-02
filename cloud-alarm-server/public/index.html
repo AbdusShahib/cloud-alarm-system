@@ -3,341 +3,130 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cloud Alarm Dashboard</title>
+    <title>Developer Admin Dashboard</title>
     <style>
-        body { 
-            margin: 0; 
-            font-family: system-ui, sans-serif; 
-            background-color: #12141d; 
-            color: #ffffff; 
-            height: 100vh; 
-            display: flex; 
-            flex-direction: column; 
-            overflow: hidden; 
-        }
-        
-        .header-bg { padding: 20px 30px 10px; flex-shrink: 0; }
-        .title-text { color: #6d809c; font-size: 15px; margin-bottom: 25px; font-weight: 600; }
-        
-        .top-row { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 25px; }
-        .top-left { display: flex; flex-direction: column; }
-        .top-right { display: flex; flex-direction: column; align-items: flex-end; }
-        
-        .controls-row { display: flex; align-items: center; gap: 20px; }
-        
-        #conn-badge { display: flex; align-items: center; background-color: #1a1a1a; border: 1px solid #6d809c; color: #6d809c; padding: 6px 18px; border-radius: 20px; font-size: 13px; font-weight: 600; }
-        #conn-badge.connected { color: #4CAF50; border-color: #4CAF50; }
-        #conn-badge.error { color: #F44336; border-color: #F44336; }
-        .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.3); border-radius: 50%; border-top-color: currentColor; animation: spin 1s linear infinite; margin-right: 8px; }
-        @keyframes spin { to { transform: rotate(360deg); } }
+        body { margin: 0; font-family: system-ui, sans-serif; background-color: #0b0c10; color: #a1b0c8; padding: 30px; }
+        h1 { color: #ffffff; margin-bottom: 5px; }
+        h3 { color: #6d809c; margin-top: 0; margin-bottom: 30px; border-bottom: 1px solid #2a2e3d; padding-bottom: 15px; }
+        .admin-panel { background: #12141d; border: 1px solid #2a2e3d; border-radius: 8px; padding: 25px; margin-bottom: 30px; }
+        .upload-row { display: flex; gap: 15px; align-items: center; }
+        input[type="file"] { background: #1e212b; color: white; padding: 10px; border: 1px solid #3c4257; border-radius: 4px; }
+        button { background-color: #4CAF50; color: white; border: none; padding: 10px 20px; border-radius: 4px; font-weight: bold; cursor: pointer; }
+        button:hover { background-color: #45a049; }
+        .btn-global { background-color: #f1c40f; color: #000; }
+        .btn-global:hover { background-color: #d4ac0d; }
+        .btn-update { background-color: #2980b9; padding: 6px 12px; font-size: 13px; }
+        .btn-update:hover { background-color: #2471a3; }
+        .btn-delete { background-color: #e54d42; padding: 6px 12px; font-size: 12px; }
+        .btn-delete:hover { background-color: #c0392b; }
 
-        .btn-silence { background-color: #e54d42; color: white; border: none; padding: 8px 24px; border-radius: 6px; font-weight: 600; cursor: pointer; transition: 0.2s; height: 34px; }
-        .btn-silence:hover { background-color: #ff574a; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; background: #12141d; }
+        th, td { border: 1px solid #2a2e3d; padding: 12px 15px; text-align: left; }
+        th { background-color: #1e212b; color: white; }
+        .status-online { color: #4CAF50; font-weight: bold; }
+        .status-offline { color: #F44336; font-weight: bold; }
+        .v-badge { background: #3c4257; padding: 4px 8px; border-radius: 12px; font-size: 12px; color: white; }
         
-        #live-clock { font-family: monospace; font-size: 52px; color: #578a51; font-weight: 900; letter-spacing: 2px; margin: 0; line-height: 1; text-shadow: 0 0 15px rgba(87, 138, 81, 0.2); }
-        #live-date { font-family: monospace; font-size: 16px; color: #6d809c; font-weight: 600; margin-top: 12px; letter-spacing: 1px; text-transform: uppercase; }
-        
-        .event-header { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 1px solid #2a2e3d; padding-bottom: 8px; margin-bottom: 10px; }
-        .event-header span { color: #ffffff; font-weight: 700; font-size: 16px; margin-bottom: 6px; }
-        
-        .btn-export { background-color: #2a2e3d; color: #a1b0c8; border: 1px solid #3c4257; padding: 8px 12px; border-radius: 4px; font-weight: 600; cursor: pointer; font-size: 13px; }
-        .btn-export:hover { background-color: #3c4257; color: white; }
-        
-        /* The wrapper forces the log to stretch dynamically to fill empty space */
-        .log-wrapper { flex-grow: 1; display: flex; flex-direction: column; padding: 0 30px; min-height: 0; margin-bottom: 20px; }
-        .event-log-window { flex-grow: 1; overflow-y: auto; background: #0b0c10; border: 1px solid #2a2e3d; border-radius: 4px; padding: 10px; font-family: monospace; font-size: 13px; color: #a1b0c8; margin: 0; }
-        .event-log-window p { margin: 4px 0; }
-        .log-time { color: #578a51; margin-right: 8px; }
-        .log-err { color: #e54d42; }
-        .log-warn { color: #f1c40f; }
-
-        .table-area { flex-shrink: 0; display: flex; width: 100%; box-sizing: border-box; padding: 0px 30px 40px; }
-        .tables-wrapper { display: flex; width: 100%; gap: 30px; }
-        .green-border-outer { flex: 1; border: 2px solid #578a51; padding: 3px; background-color: #12141d; }
-        .green-border-inner { border: 1px solid #578a51; background-color: #1e212b; height: 100%; }
-        
-        table { width: 100%; border-collapse: collapse; table-layout: fixed; }
-        th, td { border: 1px solid #2a2e3d; padding: 12px 15px; text-align: left; font-size: 14px; color: #ffffff; height: 22px; }
-        th { font-weight: 800; background-color: #252936; color: #a1b0c8; text-transform: uppercase; letter-spacing: 0.5px; }
-        
-        .status-green { background-color: #578a51; color: white; font-weight: 600; }
-        .status-orange { background-color: #d17a43; color: white; font-weight: 600; }
-        
-        .status-alarm { font-weight: 700; color: #000; animation: redYellowFlash 0.8s infinite alternate; }
-        @keyframes redYellowFlash { 0% { background-color: #e54d42; color: #fff; } 100% { background-color: #f1c40f; color: #000; } }
+        details summary { cursor: pointer; user-select: none; font-size: 13px; font-weight: bold; color: #6d809c; outline: none; }
+        details summary:hover { color: #fff; }
     </style>
 </head>
-<body onclick="initAudioContext()">
+<body>
 
-<div class="header-bg">
-    <div class="top-row">
-        <div class="top-left">
-            <div class="title-text">Live status of all room alarm nodes</div>
-            <div class="controls-row">
-                <div id="conn-badge"><span class="spinner" id="conn-spinner"></span><span id="conn-text">Connecting...</span></div>
-                <button class="btn-silence" onclick="silenceAlarms()">Silence All Alarms</button>
-            </div>
-        </div>
-        <div class="top-right">
-            <div id="live-clock">00:00:00</div>
-            <div id="live-date">---</div>
+    <h1>Developer Dashboard</h1>
+    <h3>Hardware Fleet Management & OTA Delivery</h3>
+
+    <div class="admin-panel">
+        <h4 style="color: white; margin-top: 0;">1. Upload New Firmware (.bin)</h4>
+        <div class="upload-row">
+            <input type="file" id="fw-file" accept=".bin">
+            <button onclick="uploadFirmware()">Upload to Server</button>
+            <span id="upload-status" style="margin-left: 15px; color: #f1c40f;"></span>
         </div>
     </div>
-    
-    <div class="event-header">
-        <span>Event Log</span>
-        <button class="btn-export" onclick="exportEventLog()">Export Event Log</button>
+
+    <div class="admin-panel">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+            <h4 style="color: white; margin: 0;">2. Device Fleet Status</h4>
+            <button class="btn-global" onclick="pushUpdate('ALL')">Force Update ALL Devices</button>
+        </div>
+        
+        <table id="device-table">
+            <thead>
+                <tr>
+                    <th>Device Position</th>
+                    <th>Status</th>
+                    <th>Firmware Version</th>
+                    <th>Last Online</th>
+                    <th>OTA Action</th>
+                    <th>Settings</th>
+                </tr>
+            </thead>
+            <tbody id="tbody-admin"></tbody>
+        </table>
     </div>
-</div>
 
-<div class="log-wrapper">
-    <div class="event-log-window" id="event-log"></div>
-</div>
-
-<div class="table-area">
-    <div class="tables-wrapper">
-        <div class="green-border-outer"><div class="green-border-inner">
-            <table id="table-left"><colgroup><col style="width: 56%;"><col style="width: 22%;"><col style="width: 22%;"></colgroup>
-                <thead><tr><th>Position</th><th>Remote Status</th><th>Alarm Status</th></tr></thead><tbody id="tbody-left"></tbody>
-            </table>
-        </div></div>
-
-        <div class="green-border-outer"><div class="green-border-inner">
-            <table id="table-right"><colgroup><col style="width: 56%;"><col style="width: 22%;"><col style="width: 22%;"></colgroup>
-                <thead><tr><th>Position</th><th>Remote Status</th><th>Alarm Status</th></tr></thead><tbody id="tbody-right"></tbody>
-            </table>
-        </div></div>
-    </div>
-</div>
-
-<script>
-    function updateClock() {
-        const now = new Date();
-        const timeStr = now.toLocaleTimeString([], { hour12: false, hour: '2-digit', minute:'2-digit', second:'2-digit' });
-        document.getElementById('live-clock').textContent = timeStr;
-        
-        const dateOptions = { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' };
-        document.getElementById('live-date').textContent = now.toLocaleDateString(undefined, dateOptions);
-    }
-    setInterval(updateClock, 1000);
-    updateClock();
-
-    const badge = document.getElementById('conn-badge');
-    const badgeText = document.getElementById('conn-text');
-    const spinner = document.getElementById('conn-spinner');
-    const logWindow = document.getElementById('event-log');
-    
-    let isConnected = false;
-    let evtSource = null;
-    let connectionTimeout = null;
-    let audioCtx = null;
-    let alarmInterval = null;
-    
-    let eventHistory = []; 
-    let previousNodeStates = {}; 
-
-    function addLog(msg, type = 'normal') {
-        const now = new Date();
-        const timeStr = now.toLocaleTimeString([], { hour12: false, hour: '2-digit', minute:'2-digit', second:'2-digit' });
-        const rawLog = `[${now.toISOString().split('T')[0]} ${timeStr}] ${msg}`;
-        
-        eventHistory.push(rawLog);
-        
-        let colorClass = '';
-        if (type === 'error') colorClass = 'log-err';
-        if (type === 'warn') colorClass = 'log-warn';
-        
-        const p = document.createElement('p');
-        p.innerHTML = `<span class="log-time">[${timeStr}]</span> <span class="${colorClass}">${msg}</span>`;
-        logWindow.prepend(p); 
-    }
-
-    function exportEventLog() {
-        if (eventHistory.length === 0) {
-            console.warn("Log is empty, nothing to export.");
-            return;
+    <script>
+        function uploadFirmware() {
+            const fileInput = document.getElementById('fw-file');
+            const statusText = document.getElementById('upload-status');
+            if (!fileInput.files[0]) return alert("Select a .bin file first.");
+            const formData = new FormData();
+            formData.append('firmware', fileInput.files[0]);
+            statusText.textContent = "Uploading...";
+            fetch('/api/admin/upload', { method: 'POST', body: formData })
+                .then(response => { statusText.textContent = response.ok ? "Upload Complete!" : "Upload Failed."; })
+                .catch(err => statusText.textContent = "Error: " + err);
         }
-        const blob = new Blob([eventHistory.join('\n')], { type: 'text/plain' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `Alarm_Log_${new Date().toISOString().slice(0,10)}.txt`;
-        a.click();
-        URL.revokeObjectURL(url);
-    }
 
-    function initAudioContext() {
-        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    }
-    function playAlarmBeep() {
-        if (!audioCtx) return;
-        if (audioCtx.state === 'suspended') audioCtx.resume();
-        let osc = audioCtx.createOscillator(); let gain = audioCtx.createGain();
-        osc.type = 'sawtooth';
-        osc.frequency.setValueAtTime(400, audioCtx.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(880, audioCtx.currentTime + 0.2);
-        gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
-        osc.connect(gain); gain.connect(audioCtx.destination);
-        osc.start(); osc.stop(audioCtx.currentTime + 0.4);
-    }
-    function triggerSiren(shouldRing) {
-        if (shouldRing && !alarmInterval) alarmInterval = setInterval(playAlarmBeep, 500);
-        else if (!shouldRing && alarmInterval) { clearInterval(alarmInterval); alarmInterval = null; }
-    }
+        function pushUpdate(deviceId) {
+            if(!confirm(`Send OTA update command?`)) return;
+            fetch('/api/admin/update', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ moduleId: deviceId })
+            });
+            alert("Command queued.");
+        }
 
-    function connectToServer() {
-        if (evtSource) evtSource.close();
-        evtSource = new EventSource('/api/stream');
+        function deleteDevice(deviceId) {
+            if(!confirm("Remove this offline device from the database? It will reappear if it connects again.")) return;
+            fetch('/api/admin/delete', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: deviceId })
+            });
+        }
 
-        evtSource.onopen = () => {
-            if (!isConnected) addLog("Dashboard connected to server.", "normal");
-            isConnected = true;
-            clearTimeout(connectionTimeout);
-            spinner.style.display = 'none';
-            badgeText.textContent = 'Connected';
-            badge.className = 'connected';
-        };
-
-        evtSource.onerror = () => {
-            isConnected = false;
-            spinner.style.display = 'inline-block';
-            badgeText.textContent = 'Reconnecting...';
-            badge.className = '';
-            
-            clearTimeout(connectionTimeout);
-            connectionTimeout = setTimeout(() => {
-                if (!isConnected) {
-                    spinner.style.display = 'none';
-                    badge.className = 'error';
-                    if (!navigator.onLine) {
-                        badgeText.textContent = 'No Internet';
-                        addLog("Dashboard offline: No Internet access.", "error");
-                    } else {
-                        badgeText.textContent = 'Server Problem';
-                        addLog("Dashboard offline: Cannot reach Render server.", "error");
-                    }
-                }
-            }, 10000);
-        };
-
+        const evtSource = new EventSource('/api/stream');
         evtSource.onmessage = (event) => {
             const data = JSON.parse(event.data);
-            renderData(data);
-        };
-    }
-
-    window.addEventListener('offline', () => {
-        isConnected = false;
-        clearTimeout(connectionTimeout);
-        spinner.style.display = 'none';
-        badge.className = 'error';
-        badgeText.textContent = 'No Internet';
-        addLog("Dashboard offline: Device lost internet access.", "error");
-    });
-    
-    window.addEventListener('online', () => {
-        spinner.style.display = 'inline-block';
-        badge.className = '';
-        badgeText.textContent = 'Connecting...';
-        addLog("Internet restored: Reconnecting to server...", "warn");
-        connectToServer();
-    });
-
-    function renderData(data) {
-        const entries = Object.entries(data);
-        let anyAlarmActive = false;
-
-        entries.forEach(([name, info]) => {
-            if (info.alarmTriggered) anyAlarmActive = true;
-            
-            const prev = previousNodeStates[name];
-            if (!prev) {
-                addLog(`Node detected: ${name} (${info.status.toUpperCase()})`);
-            } else {
-                if (prev.status !== info.status) {
-                    if (info.status === 'offline') {
-                        addLog(`Node ${name} went OFFLINE (No signal received)`, 'error');
-                    } else {
-                        addLog(`Node ${name} came ONLINE`, 'normal');
-                    }
-                }
-                if (!prev.alarmTriggered && info.alarmTriggered) {
-                    addLog(`ALARM TRIGGERED at ${name} (Code: ${info.rfCode})`, 'error');
-                }
-                if (prev.alarmTriggered && !info.alarmTriggered) {
-                    addLog(`Alarm Silenced at ${name}`);
-                }
-            }
-            previousNodeStates[name] = JSON.parse(JSON.stringify(info));
-        });
-
-        triggerSiren(anyAlarmActive);
-
-        const leftSide = fillRows(entries.slice(0, 8), 8);
-        const rightSide = fillRows(entries.slice(8, 16), 8);
-
-        // Pass anyAlarmActive to the buildHTML function so all tables know about the global state
-        document.getElementById('tbody-left').innerHTML = buildHTML(leftSide, anyAlarmActive);
-        document.getElementById('tbody-right').innerHTML = buildHTML(rightSide, anyAlarmActive);
-    }
-
-    function fillRows(arr, length) {
-        const copy = [...arr];
-        while(copy.length < length) copy.push(null);
-        return copy;
-    }
-
-    function buildHTML(rows, globalAlarmActive) {
-        let html = '';
-        rows.forEach(row => {
-            if (!row) {
-                html += `<tr><td></td><td></td><td></td></tr>`;
-            } else {
-                const [name, info] = row;
-                const isOnline = (info.status === 'online');
+            let html = '';
+            for (let id in data) {
+                const info = data[id];
+                const isOnline = info.status === 'online';
+                const statusClass = isOnline ? 'status-online' : 'status-offline';
+                const dateStr = info.lastSeen > 0 ? new Date(info.lastSeen).toLocaleString() : 'Never';
                 
-                let remoteClass = isOnline ? 'status-green' : 'status-orange';
-                let remoteText = isOnline ? 'Online' : 'Offline';
-                let alarmClass = remoteClass;
-                let alarmText = isOnline ? 'Online' : 'Offline';
-                let positionClass = '';
-                
-                // 1. Only the specific node that triggered the alarm flashes its POSITION name
-                if (info.alarmTriggered) {
-                    positionClass = 'status-alarm'; 
-                }
-
-                // 2. If ANY alarm is active, ALL online nodes go into ALARM ON status
-                if (globalAlarmActive) {
-                    if (isOnline) {
-                        alarmClass = 'status-alarm';
-                        alarmText = 'ALARM ON';
-                    } else {
-                        alarmClass = 'status-orange';
-                        alarmText = 'ERROR (Offline)';
-                    }
-                }
+                // Generates the dropdown arrow for deletion
+                const deleteHTML = isOnline 
+                    ? `<span style="color:#555; font-size:11px;">Unavailable (Device Online)</span>` 
+                    : `<button class="btn-delete" onclick="deleteDevice('${id}')">Delete Device</button>`;
 
                 html += `<tr>
-                    <td class="${positionClass}">${name}</td>
-                    <td class="${remoteClass}">${remoteText}</td>
-                    <td class="${alarmClass}">${alarmText}</td>
+                    <td style="color: white; font-weight: bold;">${info.name} <br><span style="font-size:10px; color:#555;">${id}</span></td>
+                    <td class="${statusClass}">${info.status.toUpperCase()}</td>
+                    <td><span class="v-badge">v${info.version}</span></td>
+                    <td style="font-family: monospace;">${dateStr}</td>
+                    <td><button class="btn-update" onclick="pushUpdate('${id}')">Update</button></td>
+                    <td>
+                        <details>
+                            <summary>&#9660; Options</summary>
+                            <div style="margin-top: 8px;">${deleteHTML}</div>
+                        </details>
+                    </td>
                 </tr>`;
             }
-        });
-        return html;
-    }
-
-    function silenceAlarms() {
-        triggerSiren(false);
-        fetch('/api/reset-all', { method: 'POST' });
-        addLog("Global 'Silence All Alarms' command issued.", "warn");
-    }
-
-    addLog("Dashboard initialized.", "normal");
-    renderData({});
-    connectToServer();
-</script>
+            document.getElementById('tbody-admin').innerHTML = html;
+        };
+    </script>
 </body>
 </html>
