@@ -1,15 +1,19 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const multer = require('multer');
+const fs = require('fs');
 const app = express();
 
 app.use(express.json());
 app.use(cors());
 app.use(express.static(path.join(__dirname, 'public'))); 
 
-app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+const storage = multer.diskStorage({
+    destination: './public/',
+    filename: (req, file, cb) => { cb(null, 'firmware.bin'); }
 });
+const upload = multer({ storage: storage });
 
 let systemStatus = {}; 
 let clients = [];
@@ -26,40 +30,42 @@ app.get('/api/stream', (req, res) => {
     
     clients.push(res);
     res.write(`data: ${JSON.stringify(systemStatus)}\n\n`);
-    
-    req.on('close', () => {
-        clients = clients.filter(c => c !== res);
-    });
+    req.on('close', () => { clients = clients.filter(c => c !== res); });
 });
 
+// Heartbeat & Alarm Endpoint
 app.post('/api/alarm', (req, res) => {
-    const { moduleId, type, code } = req.body;
+    const { id, name, moduleId, type, code, version } = req.body;
     
-    if (!systemStatus[moduleId]) {
-        systemStatus[moduleId] = { status: "online", lastSeen: 0, alarmTriggered: false, rfCode: null };
+    // Fallback for older firmware that only sends 'moduleId'
+    const deviceId = id || moduleId;
+    const deviceName = name || moduleId;
+    
+    if (!systemStatus[deviceId]) {
+        systemStatus[deviceId] = { name: deviceName, status: "online", lastSeen: 0, alarmTriggered: false, rfCode: null, version: 1, pendingUpdate: false };
     }
     
-    systemStatus[moduleId].lastSeen = Date.now();
-    systemStatus[moduleId].status = "online";
+    // Always update name in case it was changed via Setup AP
+    systemStatus[deviceId].name = deviceName;
+    systemStatus[deviceId].lastSeen = Date.now();
+    systemStatus[deviceId].status = "online";
+    if (version) systemStatus[deviceId].version = version;
     
     if (type === "alarm") {
-        systemStatus[moduleId].alarmTriggered = true;
-        systemStatus[moduleId].rfCode = code;
+        systemStatus[deviceId].alarmTriggered = true;
+        systemStatus[deviceId].rfCode = code;
     }
     
-    // Calculate if ANY room is currently triggered
     let isGlobalAlarm = false;
     for (let mod in systemStatus) {
-        if (systemStatus[mod].alarmTriggered) {
-            isGlobalAlarm = true;
-            break;
-        }
+        if (systemStatus[mod].alarmTriggered) { isGlobalAlarm = true; break; }
     }
     
-    broadcast();
+    let shouldUpdate = systemStatus[deviceId].pendingUpdate;
+    if (shouldUpdate) systemStatus[deviceId].pendingUpdate = false; 
     
-    // Respond with the JSON payload so the Wemos knows to turn on the siren
-    res.status(200).json({ globalAlarm: isGlobalAlarm });
+    broadcast();
+    res.status(200).json({ globalAlarm: isGlobalAlarm, update: shouldUpdate });
 });
 
 app.post('/api/reset-all', (req, res) => {
@@ -71,12 +77,39 @@ app.post('/api/reset-all', (req, res) => {
     res.sendStatus(200);
 });
 
-// Checks for offline nodes every 3 seconds
+// Admin OTA Upload
+app.post('/api/admin/upload', upload.single('firmware'), (req, res) => {
+    res.status(200).send("Firmware uploaded successfully.");
+});
+
+// Admin OTA Update Trigger
+app.post('/api/admin/update', (req, res) => {
+    const { moduleId } = req.body;
+    if (moduleId === 'ALL') {
+        for (let mod in systemStatus) systemStatus[mod].pendingUpdate = true;
+    } else if (systemStatus[moduleId]) {
+        systemStatus[moduleId].pendingUpdate = true;
+    }
+    res.sendStatus(200);
+});
+
+// Admin Delete Device Trigger
+app.post('/api/admin/delete', (req, res) => {
+    const { id } = req.body;
+    if (systemStatus[id] && systemStatus[id].status === 'offline') {
+        delete systemStatus[id];
+        broadcast();
+        res.sendStatus(200);
+    } else {
+        res.status(400).send("Cannot delete an online device.");
+    }
+});
+
+// Checks for offline nodes every 3 seconds (Never deletes them automatically)
 setInterval(() => {
     let changed = false;
     const now = Date.now();
     for (let mod in systemStatus) {
-        // 25 second timeout for fast UI updates
         if (systemStatus[mod].status === 'online' && (now - systemStatus[mod].lastSeen > 25000)) {
             systemStatus[mod].status = "offline";
             changed = true;
