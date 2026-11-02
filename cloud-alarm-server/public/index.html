@@ -28,26 +28,27 @@
         #live-clock { font-family: monospace; font-size: 52px; color: #578a51; font-weight: 900; letter-spacing: 2px; margin: 0; line-height: 1; text-shadow: 0 0 15px rgba(87, 138, 81, 0.2); }
         #live-date { font-size: 16px; color: #6d809c; font-weight: 600; margin-top: 5px; }
 
-        .event-header { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 1px solid #2a2e3d; padding-bottom: 8px; margin-bottom: 10px; }
+        .event-header { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 1px solid #2a2e3d; padding-bottom: 8px; margin-bottom: 10px; flex-shrink: 0; }
         .event-header span { color: #ffffff; font-weight: 700; font-size: 16px; margin-bottom: 6px; }
         
         .btn-export { background-color: #2a2e3d; color: #a1b0c8; border: 1px solid #3c4257; padding: 8px 12px; border-radius: 4px; font-weight: 600; cursor: pointer; font-size: 13px; }
         .btn-export:hover { background-color: #3c4257; color: white; }
         
-        .log-wrapper { flex-grow: 1; display: flex; flex-direction: column; padding: 0 30px; margin-bottom: 20px; overflow: hidden; }
+        /* RESPONSIVE EVENT LOG: Flex-grow forces it to stretch longer/shorter automatically */
+        .log-wrapper { flex-grow: 1; display: flex; flex-direction: column; padding: 0 30px; margin-bottom: 20px; overflow: hidden; min-height: 80px; }
         .event-log-window { flex-grow: 1; overflow-y: auto; background: #0b0c10; border: 1px solid #2a2e3d; border-radius: 4px; padding: 10px; font-family: monospace; font-size: 13px; color: #a1b0c8; }
         .event-log-window p { margin: 4px 0; }
         .log-time { color: #578a51; margin-right: 8px; }
         .log-err { color: #e54d42; }
         .log-warn { color: #f1c40f; }
 
-        .table-area { flex-shrink: 0; display: flex; align-items: flex-end; justify-content: center; padding: 10px 30px 40px; }
+        .table-area { flex-shrink: 0; display: flex; align-items: flex-end; justify-content: center; padding: 0px 30px 30px; }
         .tables-wrapper { display: flex; width: 100%; gap: 30px; }
         .green-border-outer { flex: 1; border: 2px solid #578a51; padding: 3px; background-color: #12141d; }
         .green-border-inner { border: 1px solid #578a51; background-color: #1e212b; height: 100%; }
         
         table { width: 100%; border-collapse: collapse; table-layout: fixed; }
-        th, td { border: 1px solid #2a2e3d; padding: 12px 15px; text-align: left; font-size: 14px; color: #ffffff; height: 22px; }
+        th, td { border: 1px solid #2a2e3d; padding: 10px 12px; text-align: left; font-size: 13px; color: #ffffff; height: 22px; }
         th { font-weight: 800; background-color: #252936; color: #a1b0c8; text-transform: uppercase; letter-spacing: 0.5px; }
         
         .status-green { background-color: #578a51; color: white; font-weight: 600; }
@@ -55,6 +56,11 @@
         
         .status-alarm { font-weight: 700; color: #000; animation: redYellowFlash 0.8s infinite alternate; }
         @keyframes redYellowFlash { 0% { background-color: #e54d42; color: #fff; } 100% { background-color: #f1c40f; color: #000; } }
+
+        details summary { cursor: pointer; user-select: none; font-size: 12px; font-weight: bold; color: #6d809c; outline: none; }
+        details summary:hover { color: #fff; }
+        .btn-update-mini { background-color: #2980b9; color: white; border: none; padding: 4px 8px; border-radius: 3px; font-size: 11px; cursor: pointer; margin-top: 4px; }
+        .btn-update-mini:hover { background-color: #2471a3; }
     </style>
 </head>
 <body onclick="initAudioContext()">
@@ -77,6 +83,7 @@
     </div>
 </div>
 
+<!-- Flexbox Wrapper makes the log window dynamically responsive to screen size -->
 <div class="log-wrapper">
     <div class="event-header">
         <span>Event Log</span>
@@ -88,14 +95,14 @@
 <div class="table-area">
     <div class="tables-wrapper">
         <div class="green-border-outer"><div class="green-border-inner">
-            <table id="table-left"><colgroup><col style="width: 56%;"><col style="width: 22%;"><col style="width: 22%;"></colgroup>
-                <thead><tr><th>Position</th><th>Remote Status</th><th>Alarm Status</th></tr></thead><tbody id="tbody-left"></tbody>
+            <table id="table-left"><colgroup><col style="width: 44%;"><col style="width: 20%;"><col style="width: 20%;"><col style="width: 16%;"></colgroup>
+                <thead><tr><th>Position</th><th>Remote</th><th>Alarm</th><th>Actions</th></tr></thead><tbody id="tbody-left"></tbody>
             </table>
         </div></div>
 
         <div class="green-border-outer"><div class="green-border-inner">
-            <table id="table-right"><colgroup><col style="width: 56%;"><col style="width: 22%;"><col style="width: 22%;"></colgroup>
-                <thead><tr><th>Position</th><th>Remote Status</th><th>Alarm Status</th></tr></thead><tbody id="tbody-right"></tbody>
+            <table id="table-right"><colgroup><col style="width: 44%;"><col style="width: 20%;"><col style="width: 20%;"><col style="width: 16%;"></colgroup>
+                <thead><tr><th>Position</th><th>Remote</th><th>Alarm</th><th>Actions</th></tr></thead><tbody id="tbody-right"></tbody>
             </table>
         </div></div>
     </div>
@@ -105,7 +112,7 @@
     function updateClock() {
         const now = new Date();
         const timeStr = now.toLocaleTimeString([], { hour12: false, hour: '2-digit', minute:'2-digit', second:'2-digit' });
-        const dateStr = now.toLocaleDateString([], { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+        const dateStr = now.toLocaleDateString([], { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' });
         document.getElementById('live-clock').textContent = timeStr;
         document.getElementById('live-date').textContent = dateStr;
     }
@@ -174,35 +181,33 @@
         else if (!shouldRing && alarmInterval) { clearInterval(alarmInterval); alarmInterval = null; }
     }
 
+    function triggerSingleUpdate(deviceId) {
+        if (!confirm("Send direct OTA update command to this device?")) return;
+        fetch('/api/admin/update', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ moduleId: deviceId })
+        });
+        alert("OTA update queued for this specific device.");
+    }
+
     function connectToServer() {
         if (evtSource) evtSource.close();
         evtSource = new EventSource('/api/stream');
         
         evtSource.onopen = () => {
             if (!isConnected) addLog("Dashboard connected to server.", "normal");
-            isConnected = true; 
-            clearTimeout(connectionTimeout); 
-            spinner.style.display = 'none'; 
-            badgeText.textContent = 'Connected'; 
-            badge.className = 'connected';
+            isConnected = true; clearTimeout(connectionTimeout); spinner.style.display = 'none'; badgeText.textContent = 'Connected'; badge.className = 'connected';
         };
         
         evtSource.onerror = () => {
-            isConnected = false; 
-            spinner.style.display = 'inline-block'; 
-            badgeText.textContent = 'Reconnecting...'; 
-            badge.className = '';
+            isConnected = false; spinner.style.display = 'inline-block'; badgeText.textContent = 'Reconnecting...'; badge.className = '';
             clearTimeout(connectionTimeout);
             connectionTimeout = setTimeout(() => {
                 if (!isConnected) {
                     spinner.style.display = 'none'; badge.className = 'error';
-                    if (!navigator.onLine) { 
-                        badgeText.textContent = 'No Internet'; 
-                        addLog("Dashboard offline: No Internet access.", "error"); 
-                    } else { 
-                        badgeText.textContent = 'Server Problem'; 
-                        addLog("Dashboard offline: Cannot reach server.", "error"); 
-                    }
+                    if (!navigator.onLine) { badgeText.textContent = 'No Internet'; addLog("Dashboard offline: No Internet access.", "error"); } 
+                    else { badgeText.textContent = 'Server Problem'; addLog("Dashboard offline: Cannot reach server.", "error"); }
                 }
             }, 10000);
         };
@@ -225,7 +230,6 @@
         
         entries.forEach(([id, info]) => {
             if (info.alarmTriggered) anyAlarmActive = true;
-            
             const prev = previousNodeStates[id];
             
             if (!prev) {
@@ -254,7 +258,7 @@
         let html = '';
         rows.forEach(row => {
             if (!row) {
-                html += `<tr><td></td><td></td><td></td></tr>`;
+                html += `<tr><td></td><td></td><td></td><td></td></tr>`;
             } else {
                 const [id, info] = row;
                 const isOnline = (info.status === 'online');
@@ -271,6 +275,14 @@
                     <td class="${positionClass}">${info.name}</td>
                     <td class="${remoteClass}">${isOnline ? 'Online' : 'Offline'}</td>
                     <td class="${alarmClass}">${globalAlarm && isOnline ? 'ALARM ON' : (isOnline ? 'Online' : 'Offline')}</td>
+                    <td>
+                        <details>
+                            <summary>&#9660; Menu</summary>
+                            <div style="margin-top: 4px;">
+                                <button class="btn-update-mini" onclick="triggerSingleUpdate('${id}')">OTA Update</button>
+                            </div>
+                        </details>
+                    </td>
                 </tr>`;
             }
         });
