@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Developer Admin Dashboard</title>
+    <style>
+        body { margin: 0; font-family: system-ui, sans-serif; background-color: #0b0c10; color: #a1b0c8; padding: 30px; }
+        h1 { color: #ffffff; margin-bottom: 5px; }
+        h3 { color: #6d809c; margin-top: 0; margin-bottom: 30px; border-bottom: 1px solid #2a2e3d; padding-bottom: 15px; }
+        
+        .admin-panel { background: #12141d; border: 1px solid #2a2e3d; border-radius: 8px; padding: 25px; margin-bottom: 30px; }
+        .upload-row { display: flex; gap: 15px; align-items: center; }
+        
+        input[type="file"] { background: #1e212b; color: white; padding: 10px; border: 1px solid #3c4257; border-radius: 4px; }
+        button { background-color: #4CAF50; color: white; border: none; padding: 10px 20px; border-radius: 4px; font-weight: bold; cursor: pointer; }
+        button:hover { background-color: #45a049; }
+        .btn-global { background-color: #f1c40f; color: #000; }
+        .btn-global:hover { background-color: #d4ac0d; }
+        .btn-update { background-color: #2980b9; padding: 6px 12px; font-size: 13px; }
+        .btn-update:hover { background-color: #2471a3; }
+        .btn-delete { background-color: #e54d42; padding: 6px 12px; font-size: 12px; }
+        .btn-delete:hover { background-color: #c0392b; }
+
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; background: #12141d; }
+        th, td { border: 1px solid #2a2e3d; padding: 12px 15px; text-align: left; }
+        th { background-color: #1e212b; color: white; }
+        
+        .status-online { color: #4CAF50; font-weight: bold; }
+        .status-offline { color: #F44336; font-weight: bold; }
+        .v-badge { background: #3c4257; padding: 4px 8px; border-radius: 12px; font-size: 12px; color: white; }
+        
+        details summary { cursor: pointer; user-select: none; font-size: 13px; font-weight: bold; color: #6d809c; outline: none; }
+        details summary:hover { color: #fff; }
+    </style>
+</head>
+<body>
+
+    <h1>Developer Dashboard</h1>
+    <h3>Hardware Fleet Management & OTA Delivery</h3>
+
+    <div class="admin-panel">
+        <h4 style="color: white; margin-top: 0;">1. Upload New Firmware (.bin)</h4>
+        <div class="upload-row">
+            <input type="file" id="fw-file" accept=".bin">
+            <button onclick="uploadFirmware()">Upload to Server</button>
+            <span id="upload-status" style="margin-left: 15px; color: #f1c40f;"></span>
+        </div>
+    </div>
+
+    <div class="admin-panel">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+            <h4 style="color: white; margin: 0;">2. Device Fleet Status</h4>
+            <button class="btn-global" onclick="pushUpdate('ALL')">Force Update ALL Devices</button>
+        </div>
+        
+        <table id="device-table">
+            <thead>
+                <tr>
+                    <th>Device Position</th>
+                    <th>Status</th>
+                    <th>Firmware Version</th>
+                    <th>Last Online</th>
+                    <th>OTA Action</th>
+                    <th>Settings</th>
+                </tr>
+            </thead>
+            <tbody id="tbody-admin"></tbody>
+        </table>
+    </div>
+
+    <script>
+        function uploadFirmware() {
+            const fileInput = document.getElementById('fw-file');
+            const statusText = document.getElementById('upload-status');
+            if (!fileInput.files[0]) return alert("Select a .bin file first.");
+
+            const formData = new FormData();
+            formData.append('firmware', fileInput.files[0]);
+
+            statusText.textContent = "Uploading...";
+            fetch('/api/admin/upload', { method: 'POST', body: formData })
+                .then(response => {
+                    if (response.ok) statusText.textContent = "Upload Complete! Ready for OTA.";
+                    else statusText.textContent = "Upload Failed.";
+                })
+                .catch(err => statusText.textContent = "Error: " + err);
+        }
+
+        function pushUpdate(deviceId) {
+            if(!confirm(`Send OTA update command to ${deviceId === 'ALL' ? 'ALL DEVICES' : deviceId}?`)) return;
+            fetch('/api/admin/update', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ moduleId: deviceId })
+            });
+            alert("Command queued. Devices will update on their next 10s heartbeat.");
+        }
+
+        function deleteDevice(deviceId) {
+            if(!confirm("Remove this offline device from the database? It will reappear if it connects again.")) return;
+            fetch('/api/admin/delete', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: deviceId })
+            });
+        }
+
+        const evtSource = new EventSource('/api/stream');
+        evtSource.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            let html = '';
+            for (let id in data) {
+                const info = data[id];
+                const isOnline = info.status === 'online';
+                const statusClass = isOnline ? 'status-online' : 'status-offline';
+                const dateStr = info.lastSeen > 0 ? new Date(info.lastSeen).toLocaleString() : 'Never';
+                
+                const deleteHTML = isOnline 
+                    ? `<span style="color:#555; font-size:11px;">Unavailable (Device Online)</span>` 
+                    : `<button class="btn-delete" onclick="deleteDevice('${id}')">Delete Device</button>`;
+
+                html += `<tr>
+                    <td style="color: white; font-weight: bold;">${info.name} <br><span style="font-size:10px; color:#555;">${id}</span></td>
+                    <td class="${statusClass}">${info.status.toUpperCase()}</td>
+                    <td><span class="v-badge">v${info.version}</span></td>
+                    <td style="font-family: monospace;">${dateStr}</td>
+                    <td><button class="btn-update" onclick="pushUpdate('${id}')">Update</button></td>
+                    <td>
+                        <details>
+                            <summary>&#9660; Options</summary>
+                            <div style="margin-top: 8px;">${deleteHTML}</div>
+                        </details>
+                    </td>
+                </tr>`;
+            }
+            document.getElementById('tbody-admin').innerHTML = html;
+        };
+    </script>
+</body>
+</html>
