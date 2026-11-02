@@ -48,7 +48,7 @@
         .green-border-inner { border: 1px solid #578a51; background-color: #1e212b; height: 100%; }
         
         table { width: 100%; border-collapse: collapse; table-layout: fixed; }
-        th, td { border: 1px solid #2a2e3d; padding: 10px 12px; text-align: left; font-size: 13px; color: #ffffff; height: 22px; }
+        th, td { border: 1px solid #2a2e3d; padding: 10px 12px; text-align: left; font-size: 13px; color: #ffffff; height: 22px; position: relative; }
         th { font-weight: 800; background-color: #252936; color: #a1b0c8; text-transform: uppercase; letter-spacing: 0.5px; }
         
         .status-green { background-color: #578a51; color: white; font-weight: 600; }
@@ -57,7 +57,13 @@
         .status-alarm { font-weight: 700; color: #000; animation: redYellowFlash 0.8s infinite alternate; }
         @keyframes redYellowFlash { 0% { background-color: #e54d42; color: #fff; } 100% { background-color: #f1c40f; color: #000; } }
 
-        .v-badge { background: #3c4257; padding: 3px 8px; border-radius: 10px; font-size: 12px; color: white; font-family: monospace; }
+        details summary { cursor: pointer; user-select: none; font-size: 12px; font-weight: bold; color: #6d809c; outline: none; }
+        details summary:hover { color: #fff; }
+        
+        .menu-dropdown { position: absolute; background: #161922; border: 1px solid #3c4257; border-radius: 6px; padding: 8px 12px; z-index: 100; box-shadow: 0 4px 12px rgba(0,0,0,0.5); width: 140px; right: 10px; margin-top: 5px; }
+        .menu-item { display: flex; align-items: center; gap: 8px; font-size: 12px; color: #a1b0c8; padding: 5px 0; cursor: pointer; background: none; border: none; width: 100%; text-align: left; }
+        .menu-item:hover { color: #fff; }
+        .menu-version { font-family: monospace; font-size: 11px; color: #f1c40f; border-bottom: 1px solid #2a2e3d; padding-bottom: 6px; margin-bottom: 4px; }
     </style>
 </head>
 <body onclick="initAudioContext()">
@@ -91,14 +97,14 @@
 <div class="table-area">
     <div class="tables-wrapper">
         <div class="green-border-outer"><div class="green-border-inner">
-            <table id="table-left"><colgroup><col style="width: 46%;"><col style="width: 18%;"><col style="width: 18%;"><col style="width: 18%;"></colgroup>
-                <thead><tr><th>Position</th><th>Remote</th><th>Alarm</th><th>Firmware</th></tr></thead><tbody id="tbody-left"></tbody>
+            <table id="table-left"><colgroup><col style="width: 50%;"><col style="width: 25%;"><col style="width: 25%;"></colgroup>
+                <thead><tr><th>Position</th><th>Remote</th><th>Alarm</th></tr></thead><tbody id="tbody-left"></tbody>
             </table>
         </div></div>
 
         <div class="green-border-outer"><div class="green-border-inner">
-            <table id="table-right"><colgroup><col style="width: 46%;"><col style="width: 18%;"><col style="width: 18%;"><col style="width: 18%;"></colgroup>
-                <thead><tr><th>Position</th><th>Remote</th><th>Alarm</th><th>Firmware</th></tr></thead><tbody id="tbody-right"></tbody>
+            <table id="table-right"><colgroup><col style="width: 50%;"><col style="width: 25%;"><col style="width: 25%;"></colgroup>
+                <thead><tr><th>Position</th><th>Remote</th><th>Alarm</th></tr></thead><tbody id="tbody-right"></tbody>
             </table>
         </div></div>
     </div>
@@ -177,6 +183,33 @@
         else if (!shouldRing && alarmInterval) { clearInterval(alarmInterval); alarmInterval = null; }
     }
 
+    function renameDevice(id, currentName) {
+        const newName = prompt("Enter new position name for this device:", currentName);
+        if (!newName || newName.trim() === "") return;
+        
+        fetch('/api/rename', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: id, newName: newName })
+        }).then(res => {
+            if (!res.ok) alert("Failed to rename device.");
+        });
+    }
+
+    function deleteDevice(id, isOnline) {
+        if (isOnline) {
+            alert("Cannot delete an online device.");
+            return;
+        }
+        if (!confirm("Remove this offline device from the database? It will reappear if it connects again.")) return;
+        
+        fetch('/api/admin/delete', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: id })
+        });
+    }
+
     function connectToServer() {
         if (evtSource) evtSource.close();
         evtSource = new EventSource('/api/stream');
@@ -244,7 +277,7 @@
         let html = '';
         rows.forEach(row => {
             if (!row) {
-                html += `<tr><td></td><td></td><td></td><td></td></tr>`;
+                html += `<tr><td></td><td></td><td></td></tr>`;
             } else {
                 const [id, info] = row;
                 const isOnline = (info.status === 'online');
@@ -258,10 +291,19 @@
                 }
 
                 html += `<tr>
-                    <td class="${positionClass}">${info.name}</td>
+                    <td class="${positionClass}" style="display: flex; justify-content: space-between; align-items: center; border: none; height: 100%;">
+                        <span>${info.name}</span>
+                        <details style="position: relative;">
+                            <summary style="list-style: none; cursor: pointer; padding: 2px 6px; background: #2a2e3d; border-radius: 4px; font-size: 11px;">▼</summary>
+                            <div class="menu-dropdown">
+                                <div class="menu-version">Firmware: v${info.version || 1}</div>
+                                <button class="menu-item" onclick="renameDevice('${id}', '${info.name}')">✏️ Rename</button>
+                                <button class="menu-item" onclick="deleteDevice('${id}', ${isOnline})" style="${isOnline ? 'opacity: 0.4; cursor: not-allowed;' : 'color: #e54d42;'}">🗑️ Delete</button>
+                            </div>
+                        </details>
+                    </td>
                     <td class="${remoteClass}">${isOnline ? 'Online' : 'Offline'}</td>
                     <td class="${alarmClass}">${globalAlarm && isOnline ? 'ALARM ON' : (isOnline ? 'Online' : 'Offline')}</td>
-                    <td><span class="v-badge">v${info.version || 1}</span></td>
                 </tr>`;
             }
         });
