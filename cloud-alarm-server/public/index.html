@@ -34,7 +34,7 @@
         .btn-export { background-color: #2a2e3d; color: #a1b0c8; border: 1px solid #3c4257; padding: 8px 12px; border-radius: 4px; font-weight: 600; cursor: pointer; font-size: 13px; }
         .btn-export:hover { background-color: #3c4257; color: white; }
         
-        /* RESPONSIVE EVENT LOG: Flex-grow forces it to stretch longer/shorter automatically */
+        /* RESPONSIVE EVENT LOG */
         .log-wrapper { flex-grow: 1; display: flex; flex-direction: column; padding: 0 30px; margin-bottom: 20px; overflow: hidden; min-height: 80px; }
         .event-log-window { flex-grow: 1; overflow-y: auto; background: #0b0c10; border: 1px solid #2a2e3d; border-radius: 4px; padding: 10px; font-family: monospace; font-size: 13px; color: #a1b0c8; }
         .event-log-window p { margin: 4px 0; }
@@ -57,10 +57,7 @@
         .status-alarm { font-weight: 700; color: #000; animation: redYellowFlash 0.8s infinite alternate; }
         @keyframes redYellowFlash { 0% { background-color: #e54d42; color: #fff; } 100% { background-color: #f1c40f; color: #000; } }
 
-        details summary { cursor: pointer; user-select: none; font-size: 12px; font-weight: bold; color: #6d809c; outline: none; }
-        details summary:hover { color: #fff; }
-        .btn-update-mini { background-color: #2980b9; color: white; border: none; padding: 4px 8px; border-radius: 3px; font-size: 11px; cursor: pointer; margin-top: 4px; }
-        .btn-update-mini:hover { background-color: #2471a3; }
+        .v-badge { background: #3c4257; padding: 3px 8px; border-radius: 10px; font-size: 12px; color: white; font-family: monospace; }
     </style>
 </head>
 <body onclick="initAudioContext()">
@@ -83,7 +80,6 @@
     </div>
 </div>
 
-<!-- Flexbox Wrapper makes the log window dynamically responsive to screen size -->
 <div class="log-wrapper">
     <div class="event-header">
         <span>Event Log</span>
@@ -95,14 +91,14 @@
 <div class="table-area">
     <div class="tables-wrapper">
         <div class="green-border-outer"><div class="green-border-inner">
-            <table id="table-left"><colgroup><col style="width: 44%;"><col style="width: 20%;"><col style="width: 20%;"><col style="width: 16%;"></colgroup>
-                <thead><tr><th>Position</th><th>Remote</th><th>Alarm</th><th>Actions</th></tr></thead><tbody id="tbody-left"></tbody>
+            <table id="table-left"><colgroup><col style="width: 46%;"><col style="width: 18%;"><col style="width: 18%;"><col style="width: 18%;"></colgroup>
+                <thead><tr><th>Position</th><th>Remote</th><th>Alarm</th><th>Firmware</th></tr></thead><tbody id="tbody-left"></tbody>
             </table>
         </div></div>
 
         <div class="green-border-outer"><div class="green-border-inner">
-            <table id="table-right"><colgroup><col style="width: 44%;"><col style="width: 20%;"><col style="width: 20%;"><col style="width: 16%;"></colgroup>
-                <thead><tr><th>Position</th><th>Remote</th><th>Alarm</th><th>Actions</th></tr></thead><tbody id="tbody-right"></tbody>
+            <table id="table-right"><colgroup><col style="width: 46%;"><col style="width: 18%;"><col style="width: 18%;"><col style="width: 18%;"></colgroup>
+                <thead><tr><th>Position</th><th>Remote</th><th>Alarm</th><th>Firmware</th></tr></thead><tbody id="tbody-right"></tbody>
             </table>
         </div></div>
     </div>
@@ -181,16 +177,6 @@
         else if (!shouldRing && alarmInterval) { clearInterval(alarmInterval); alarmInterval = null; }
     }
 
-    function triggerSingleUpdate(deviceId) {
-        if (!confirm("Send direct OTA update command to this device?")) return;
-        fetch('/api/admin/update', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ moduleId: deviceId })
-        });
-        alert("OTA update queued for this specific device.");
-    }
-
     function connectToServer() {
         if (evtSource) evtSource.close();
         evtSource = new EventSource('/api/stream');
@@ -233,7 +219,7 @@
             const prev = previousNodeStates[id];
             
             if (!prev) {
-                addLog(`Node detected: ${info.name} (${info.status.toUpperCase()})`);
+                addLog(`Node detected: ${info.name} (${info.status.toUpperCase()}) - v${info.version}`);
             } else {
                 if (prev.status !== info.status) addLog(`Node ${info.name} went ${info.status.toUpperCase()}`, info.status === 'offline' ? 'error' : 'normal');
                 if (!prev.alarmTriggered && info.alarmTriggered) addLog(`ALARM TRIGGERED at ${info.name}`, 'error');
@@ -275,14 +261,7 @@
                     <td class="${positionClass}">${info.name}</td>
                     <td class="${remoteClass}">${isOnline ? 'Online' : 'Offline'}</td>
                     <td class="${alarmClass}">${globalAlarm && isOnline ? 'ALARM ON' : (isOnline ? 'Online' : 'Offline')}</td>
-                    <td>
-                        <details>
-                            <summary>&#9660; Menu</summary>
-                            <div style="margin-top: 4px;">
-                                <button class="btn-update-mini" onclick="triggerSingleUpdate('${id}')">OTA Update</button>
-                            </div>
-                        </details>
-                    </td>
+                    <td><span class="v-badge">v${info.version || 1}</span></td>
                 </tr>`;
             }
         });
