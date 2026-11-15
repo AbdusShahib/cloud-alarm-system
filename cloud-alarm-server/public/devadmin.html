@@ -3,139 +3,340 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Developer Admin Dashboard</title>
+    <title>Developer Admin Dashboard — Cloud Alarm System</title>
     <style>
-        body { margin: 0; font-family: system-ui, sans-serif; background-color: #0b0c10; color: #a1b0c8; padding: 30px; }
-        h1 { color: #ffffff; margin-bottom: 5px; }
-        h3 { color: #6d809c; margin-top: 0; margin-bottom: 30px; border-bottom: 1px solid #2a2e3d; padding-bottom: 15px; }
-        
-        .admin-panel { background: #12141d; border: 1px solid #2a2e3d; border-radius: 8px; padding: 25px; margin-bottom: 30px; }
-        .upload-row { display: flex; gap: 15px; align-items: center; }
-        
-        input[type="file"] { background: #1e212b; color: white; padding: 10px; border: 1px solid #3c4257; border-radius: 4px; }
-        button { background-color: #4CAF50; color: white; border: none; padding: 10px 20px; border-radius: 4px; font-weight: bold; cursor: pointer; }
-        button:hover { background-color: #45a049; }
-        .btn-global { background-color: #f1c40f; color: #000; }
-        .btn-global:hover { background-color: #d4ac0d; }
-        .btn-update { background-color: #2980b9; padding: 6px 12px; font-size: 13px; }
-        .btn-update:hover { background-color: #2471a3; }
-        .btn-delete { background-color: #e54d42; padding: 6px 12px; font-size: 12px; }
-        .btn-delete:hover { background-color: #c0392b; }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            font-family: system-ui, -apple-system, sans-serif;
+            background-color: #12141d;
+            color: #ffffff;
+            padding: 24px 32px;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #2a2e3d;
+            padding-bottom: 16px;
+            margin-bottom: 24px;
+        }
+        .header h1 { margin: 0; font-size: 20px; letter-spacing: 0.4px; }
+        .header p { margin: 4px 0 0; font-size: 13px; color: #6d809c; }
+        .nav-link {
+            color: #a1b0c8;
+            text-decoration: none;
+            background: #1e212b;
+            border: 1px solid #3c4257;
+            padding: 8px 14px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+        }
+        .nav-link:hover { background: #2a2e3d; color: #fff; }
 
-        table { width: 100%; border-collapse: collapse; margin-top: 15px; background: #12141d; }
-        th, td { border: 1px solid #2a2e3d; padding: 12px 15px; text-align: left; }
-        th { background-color: #1e212b; color: white; }
-        
-        .status-online { color: #4CAF50; font-weight: bold; }
-        .status-offline { color: #F44336; font-weight: bold; }
-        .v-badge { background: #3c4257; padding: 4px 8px; border-radius: 12px; font-size: 12px; color: white; }
-        
-        details summary { cursor: pointer; user-select: none; font-size: 13px; font-weight: bold; color: #6d809c; outline: none; }
-        details summary:hover { color: #fff; }
+        .section-card {
+            background: #1a1d27;
+            border: 1px solid #2e3446;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 28px;
+        }
+        .section-card.isolated {
+            border: 1.5px solid #d97706;
+            background: linear-gradient(180deg, rgba(217, 119, 6, 0.08) 0%, #1a1d27 100%);
+        }
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+        .section-title {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 16px;
+            font-weight: 700;
+        }
+        .badge {
+            font-size: 11px;
+            font-weight: 700;
+            padding: 4px 10px;
+            border-radius: 999px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .badge-cloud { background: rgba(87, 138, 81, 0.2); color: #7cc474; border: 1px solid #578a51; }
+        .badge-isolated { background: rgba(217, 119, 6, 0.2); color: #fbbf24; border: 1px solid #d97706; }
+
+        .ota-bar {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: #12141d;
+            border: 1px solid #2a2e3d;
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+        }
+        input[type="file"] { color: #a1b0c8; font-size: 13px; }
+        .btn {
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 13px;
+            cursor: pointer;
+            transition: 0.15s;
+        }
+        .btn-green { background: #578a51; color: #fff; }
+        .btn-green:hover { background: #67a160; }
+        .btn-amber { background: #d97706; color: #fff; }
+        .btn-amber:hover { background: #f59e0b; color: #000; }
+        .btn-ghost { background: #2a2e3d; color: #a1b0c8; border: 1px solid #3c4257; }
+        .btn-ghost:hover { color: #fff; }
+
+        .status-msg {
+            font-size: 13px;
+            margin-bottom: 12px;
+            padding: 8px 12px;
+            border-radius: 6px;
+            display: none;
+        }
+        .status-msg.show { display: block; background: #252936; border-left: 3px solid #578a51; color: #d1fae5; }
+        .status-msg.warn { border-left-color: #d97706; color: #fef3c7; }
+
+        table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        th, td {
+            border: 1px solid #2a2e3d;
+            padding: 11px 14px;
+            text-align: left;
+        }
+        th { background: #252936; color: #a1b0c8; text-transform: uppercase; font-size: 11px; letter-spacing: 0.6px; }
+        .pill-online { color: #4ade80; font-weight: 700; }
+        .pill-offline { color: #fb923c; font-weight: 700; }
+        .pill-pending {
+            display: inline-block;
+            background: rgba(59, 130, 246, 0.2);
+            color: #93c5fd;
+            border: 1px solid #3b82f6;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 700;
+        }
+        .empty-row { text-align: center; color: #6d809c; padding: 20px; }
     </style>
 </head>
 <body>
 
-    <h1>Developer Dashboard</h1>
-    <h3>Hardware Fleet Management & OTA Delivery</h3>
+<div class="header">
+    <div>
+        <h1>Developer Hardware &amp; OTA Console</h1>
+        <p>Manage firmware versions and isolated over-the-air updates</p>
+    </div>
+    <a href="/" class="nav-link">&larr; Main Cloud Alarm Dashboard</a>
+</div>
 
-    <div class="admin-panel">
-        <h4 style="color: white; margin-top: 0;">1. Upload New Firmware (.bin)</h4>
-        <div class="upload-row">
-            <input type="file" id="fw-file" accept=".bin">
-            <button onclick="uploadFirmware()">Upload to Server</button>
-            <span id="upload-status" style="margin-left: 15px; color: #f1c40f;"></span>
+<!-- SECTION 1: STANDARD CLOUD ALARM NODES (COMBINED OTA) -->
+<div class="section-card">
+    <div class="section-header">
+        <div class="section-title">
+            <span>Cloud Alarm System Nodes</span>
+            <span class="badge badge-cloud">Combined OTA Group</span>
         </div>
     </div>
 
-    <div class="admin-panel">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-            <h4 style="color: white; margin: 0;">2. Device Fleet Status</h4>
-            <button class="btn-global" onclick="pushUpdate('ALL')">Force Update ALL Devices</button>
+    <div class="ota-bar">
+        <input type="file" id="cloud-bin-file" accept=".bin">
+        <button class="btn btn-green" onclick="uploadCloudOTA('ALL')">Combined OTA Update (All Cloud Nodes)</button>
+        <button class="btn btn-ghost" onclick="cancelOTA('cloud')">Clear Queue</button>
+    </div>
+    <div id="cloud-msg" class="status-msg"></div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Room / Position</th>
+                <th>MAC Address</th>
+                <th>Status</th>
+                <th>Firmware</th>
+                <th>OTA Queue</th>
+                <th>Single Node OTA</th>
+            </tr>
+        </thead>
+        <tbody id="cloud-tbody">
+            <tr><td colspan="6" class="empty-row">Waiting for Cloud Alarm nodes...</td></tr>
+        </tbody>
+    </table>
+</div>
+
+<!-- SECTION 2: ISOLATED STANDALONE POOL ALARM -->
+<div class="section-card isolated">
+    <div class="section-header">
+        <div class="section-title">
+            <span>Standalone Pool Alarm Unit</span>
+            <span class="badge badge-isolated">Isolated &bull; Excluded from Combined OTA</span>
         </div>
-        
-        <table id="device-table">
-            <thead>
-                <tr>
-                    <th>Device Position</th>
-                    <th>Status</th>
-                    <th>Firmware Version</th>
-                    <th>Last Online</th>
-                    <th>OTA Action</th>
-                    <th>Settings</th>
-                </tr>
-            </thead>
-            <tbody id="tbody-admin"></tbody>
-        </table>
+        <span style="font-family: monospace; color: #fbbf24; font-size: 13px;">MAC: E0:98:06:A8:6B:2D</span>
     </div>
 
-    <script>
-        function uploadFirmware() {
-            const fileInput = document.getElementById('fw-file');
-            const statusText = document.getElementById('upload-status');
-            if (!fileInput.files[0]) return alert("Select a .bin file first.");
+    <div class="ota-bar">
+        <input type="file" id="pool-bin-file" accept=".bin">
+        <button class="btn btn-amber" onclick="uploadPoolOTA()">Update Pool Alarm Firmware Only</button>
+        <button class="btn btn-ghost" onclick="cancelOTA('pool')">Cancel Pool OTA</button>
+    </div>
+    <div id="pool-msg" class="status-msg warn"></div>
 
-            const formData = new FormData();
-            formData.append('firmware', fileInput.files[0]);
+    <table>
+        <thead>
+            <tr>
+                <th>Device Name</th>
+                <th>MAC Address</th>
+                <th>Mode</th>
+                <th>Connection</th>
+                <th>Firmware</th>
+                <th>OTA Status</th>
+            </tr>
+        </thead>
+        <tbody id="pool-tbody">
+            <tr><td colspan="6" class="empty-row">Pool Alarm (E0:98:06:A8:6B:2D) not seen yet...</td></tr>
+        </tbody>
+    </table>
+</div>
 
-            statusText.textContent = "Uploading...";
-            fetch('/api/admin/upload', { method: 'POST', body: formData })
-                .then(response => {
-                    if (response.ok) statusText.textContent = "Upload Complete! Ready for OTA.";
-                    else statusText.textContent = "Upload Failed.";
-                })
-                .catch(err => statusText.textContent = "Error: " + err);
+<script>
+    const POOL_ALARM_MAC = 'E0:98:06:A8:6B:2D';
+    let latestNodes = {};
+    let latestOta = { cloudPending: [], poolPending: false };
+
+    function showBanner(elementId, text, isWarn = false) {
+        const el = document.getElementById(elementId);
+        el.textContent = text;
+        el.className = isWarn ? 'status-msg warn show' : 'status-msg show';
+    }
+
+    function fileToBase64(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result.split(',')[1]);
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+        });
+    }
+
+    async function uploadCloudOTA(target) {
+        const input = document.getElementById('cloud-bin-file');
+        if (!input.files || !input.files[0]) {
+            showBanner('cloud-msg', 'Please select a Cloud Alarm .bin firmware file first.', true);
+            return;
         }
+        const file = input.files[0];
+        const fileBase64 = await fileToBase64(file);
 
-        function pushUpdate(deviceId) {
-            if(!confirm(`Send OTA update command to ${deviceId === 'ALL' ? 'ALL DEVICES' : deviceId}?`)) return;
-            fetch('/api/admin/update', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ moduleId: deviceId })
-            });
-            alert("Command queued. Devices will update on their next 10s heartbeat.");
+        const res = await fetch('/api/ota/cloud', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ fileBase64, fileName: file.name, target })
+        });
+        const data = await res.json();
+        if (data.ok) {
+            const label = target === 'ALL' ? `all ${data.queued.length} Cloud Alarm node(s)` : target;
+            showBanner('cloud-msg', `Queued "${file.name}" for ${label}. Pool Alarm (E0:98:06:A8:6B:2D) was safely excluded.`);
         }
+    }
 
-        function deleteDevice(deviceId) {
-            if(!confirm("Remove this offline device from the database? It will reappear if it connects again.")) return;
-            fetch('/api/admin/delete', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ id: deviceId })
-            });
+    async function uploadPoolOTA() {
+        const input = document.getElementById('pool-bin-file');
+        if (!input.files || !input.files[0]) {
+            showBanner('pool-msg', 'Please select a Standalone Pool Alarm .bin firmware file first.', true);
+            return;
         }
+        const file = input.files[0];
+        const fileBase64 = await fileToBase64(file);
 
-        const evtSource = new EventSource('/api/stream');
-        evtSource.onmessage = (event) => {
-            const data = JSON.parse(event.data);
-            let html = '';
-            for (let id in data) {
-                const info = data[id];
+        const res = await fetch('/api/ota/pool', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ fileBase64, fileName: file.name })
+        });
+        const data = await res.json();
+        if (data.ok) {
+            showBanner('pool-msg', `Isolated Pool OTA queued ("${file.name}"). Will install on E0:98:06:A8:6B:2D on its next heartbeat.`, true);
+        }
+    }
+
+    async function cancelOTA(scope) {
+        await fetch('/api/ota/cancel', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ scope })
+        });
+        showBanner(scope === 'pool' ? 'pool-msg' : 'cloud-msg', 'OTA queue cleared.', scope === 'pool');
+    }
+
+    function renderTables() {
+        const cloudTbody = document.getElementById('cloud-tbody');
+        const poolTbody = document.getElementById('pool-tbody');
+
+        const cloudEntries = Object.entries(latestNodes).filter(([id]) => id.toUpperCase() !== POOL_ALARM_MAC);
+        const poolEntry = Object.entries(latestNodes).find(([id]) => id.toUpperCase() === POOL_ALARM_MAC);
+
+        if (cloudEntries.length === 0) {
+            cloudTbody.innerHTML = '<tr><td colspan="6" class="empty-row">No Cloud Alarm nodes online yet.</td></tr>';
+        } else {
+            cloudTbody.innerHTML = cloudEntries.map(([id, info]) => {
                 const isOnline = info.status === 'online';
-                const statusClass = isOnline ? 'status-online' : 'status-offline';
-                const dateStr = info.lastSeen > 0 ? new Date(info.lastSeen).toLocaleString() : 'Never';
-                
-                const deleteHTML = isOnline 
-                    ? `<span style="color:#555; font-size:11px;">Unavailable (Device Online)</span>` 
-                    : `<button class="btn-delete" onclick="deleteDevice('${id}')">Delete Device</button>`;
-
-                html += `<tr>
-                    <td style="color: white; font-weight: bold;">${info.name} <br><span style="font-size:10px; color:#555;">${id}</span></td>
-                    <td class="${statusClass}">${info.status.toUpperCase()}</td>
-                    <td><span class="v-badge">v${info.version}</span></td>
-                    <td style="font-family: monospace;">${dateStr}</td>
-                    <td><button class="btn-update" onclick="pushUpdate('${id}')">Update</button></td>
-                    <td>
-                        <details>
-                            <summary>&#9660; Options</summary>
-                            <div style="margin-top: 8px;">${deleteHTML}</div>
-                        </details>
-                    </td>
+                const isQueued = (latestOta.cloudPending || []).includes(id.toUpperCase());
+                return `<tr>
+                    <td><strong>${info.name || 'Unknown Room'}</strong></td>
+                    <td style="font-family: monospace;">${id}</td>
+                    <td class="${isOnline ? 'pill-online' : 'pill-offline'}">${info.status.toUpperCase()}</td>
+                    <td>v${info.version || 1}</td>
+                    <td>${isQueued ? '<span class="pill-pending">OTA QUEUED</span>' : '<span style="color:#6d809c;">Up to date</span>'}</td>
+                    <td><button class="btn btn-ghost" onclick="uploadCloudOTA('${id}')">Push Selected .bin</button></td>
                 </tr>`;
-            }
-            document.getElementById('tbody-admin').innerHTML = html;
-        };
-    </script>
+            }).join('');
+        }
+
+        if (!poolEntry) {
+            poolTbody.innerHTML = `<tr>
+                <td>Pool Alarm Unit</td>
+                <td style="font-family: monospace;">${POOL_ALARM_MAC}</td>
+                <td><span class="badge badge-isolated">Standalone</span></td>
+                <td class="pill-offline">OFFLINE</td>
+                <td>--</td>
+                <td>${latestOta.poolPending ? '<span class="pill-pending">POOL OTA QUEUED</span>' : '<span style="color:#6d809c;">Idle</span>'}</td>
+            </tr>`;
+        } else {
+            const [id, info] = poolEntry;
+            const isOnline = info.status === 'online';
+            poolTbody.innerHTML = `<tr>
+                <td><strong>${info.name || 'Pool Alarm Unit'}</strong></td>
+                <td style="font-family: monospace;">${id}</td>
+                <td><span class="badge badge-isolated">Standalone / Offline-Capable</span></td>
+                <td class="${isOnline ? 'pill-online' : 'pill-offline'}">${info.status.toUpperCase()}</td>
+                <td>v${info.version || 103}</td>
+                <td>${latestOta.poolPending ? '<span class="pill-pending">POOL OTA QUEUED</span>' : '<span style="color:#6d809c;">Idle</span>'}</td>
+            </tr>`;
+        }
+    }
+
+    const evtSource = new EventSource('/api/stream');
+    evtSource.onmessage = (event) => {
+        latestNodes = JSON.parse(event.data);
+        renderTables();
+    };
+    evtSource.addEventListener('devstate', (event) => {
+        const state = JSON.parse(event.data);
+        latestNodes = state.nodes || {};
+        latestOta = state.ota || { cloudPending: [], poolPending: false };
+        renderTables();
+    });
+</script>
 </body>
 </html>
