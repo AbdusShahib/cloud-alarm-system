@@ -15,6 +15,7 @@ app.get('/', (req, res) => {
 // Memory bank to store node data
 let systemStatus = {}; 
 let clients = [];
+const POOL_ALARM_MAC = 'E0:98:06:A8:6B:2D';
 
 // Broadcasts real-time updates to all connected browser dashboards
 function broadcast() {
@@ -39,8 +40,9 @@ app.get('/api/stream', (req, res) => {
 // --- 2. WEMOS INCOMING DATA HANDLER ---
 app.post('/api/alarm', (req, res) => {
     const { id, name, moduleId, type, code, version, standalone } = req.body;
-    const deviceId = id || moduleId;
+    const deviceId = (id || moduleId || '').trim();
     const deviceName = name || moduleId;
+    const isPoolAlarm = deviceId.toUpperCase() === POOL_ALARM_MAC;
     
     // Register new node if it doesn't exist
     if (!systemStatus[deviceId]) {
@@ -51,7 +53,7 @@ app.post('/api/alarm', (req, res) => {
             alarmTriggered: false, 
             rfCode: null,
             version: version || 1,
-            standalone: Boolean(standalone)
+            standalone: isPoolAlarm || Boolean(standalone)
         };
     }
     
@@ -60,10 +62,10 @@ app.post('/api/alarm', (req, res) => {
     systemStatus[deviceId].lastSeen = Date.now();
     systemStatus[deviceId].status = "online";
     if (version) systemStatus[deviceId].version = version;
-    if (standalone !== undefined) systemStatus[deviceId].standalone = Boolean(standalone);
+    systemStatus[deviceId].standalone = isPoolAlarm;
     
-    // Only standard (non-standalone) alarm payloads trigger the building-wide global alarm
-    if (type === "alarm" && !systemStatus[deviceId].standalone) {
+    // Only standard building nodes (not the pool alarm) trigger the building-wide global alarm
+    if (type === "alarm" && !isPoolAlarm) {
         systemStatus[deviceId].alarmTriggered = true;
         systemStatus[deviceId].rfCode = code;
     }
@@ -73,7 +75,7 @@ app.post('/api/alarm', (req, res) => {
     // Check if ANY standard node in the entire building has an active alarm
     let globalAlarm = false;
     for (let mod in systemStatus) {
-        if (!systemStatus[mod].standalone && systemStatus[mod].alarmTriggered) {
+        if (mod.toUpperCase() !== POOL_ALARM_MAC && systemStatus[mod].alarmTriggered) {
             globalAlarm = true;
             break;
         }
