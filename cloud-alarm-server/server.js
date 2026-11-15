@@ -1,54 +1,28 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
-const multer = require('multer');
-const fs = require('fs');
 const app = express();
 
 app.use(express.json());
 app.use(cors());
 app.use(express.static(path.join(__dirname, 'public'))); 
 
-const storage = multer.diskStorage({
-    destination: './public/',
-    filename: (req, file, cb) => { cb(null, 'firmware.bin'); }
+// Force the server to send index.html when someone visits the main link
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
-const upload = multer({ storage: storage });
 
-// --- PERSISTENT STORAGE SETUP ---
-const DB_FILE = path.join(__dirname, 'devices.json');
-let systemStatus = {};
-
-// Load saved devices on boot so offline devices don't vanish on server restart
-if (fs.existsSync(DB_FILE)) {
-    try {
-        systemStatus = JSON.parse(fs.readFileSync(DB_FILE, 'utf8'));
-        // Mark all loaded devices as offline initially until they check in
-        for (let id in systemStatus) {
-            if (systemStatus[id].status === 'online') {
-                systemStatus[id].status = 'offline';
-            }
-        }
-    } catch (e) {
-        console.error("Error reading devices.json:", e);
-    }
-}
-
-function saveDatabase() {
-    try {
-        fs.writeFileSync(DB_FILE, JSON.stringify(systemStatus, null, 2));
-    } catch (e) {
-        console.error("Error writing devices.json:", e);
-    }
-}
-
+// Memory bank to store node data
+let systemStatus = {}; 
 let clients = [];
 
+// Broadcasts real-time updates to all connected browser dashboards
 function broadcast() {
     const payload = `data: ${JSON.stringify(systemStatus)}\n\n`;
     clients.forEach(client => client.write(payload));
 }
 
+// --- 1. SSE STREAM (DASHBOARD REAL-TIME CONNECTION) ---
 app.get('/api/stream', (req, res) => {
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
@@ -56,105 +30,82 @@ app.get('/api/stream', (req, res) => {
     
     clients.push(res);
     res.write(`data: ${JSON.stringify(systemStatus)}\n\n`);
-    req.on('close', () => { clients = clients.filter(c => c !== res); });
+    
+    req.on('close', () => {
+        clients = clients.filter(c => c !== res);
+    });
 });
 
+// --- 2. WEMOS INCOMING DATA HANDLER ---
 app.post('/api/alarm', (req, res) => {
-    const { id, name, moduleId, type, code, version } = req.body;
+    const { id, name, moduleId, type, code, version, standalone } = req.body;
     const deviceId = id || moduleId;
     const deviceName = name || moduleId;
     
+    // Register new node if it doesn't exist
     if (!systemStatus[deviceId]) {
-        systemStatus[deviceId] = { name: deviceName, status: "online", lastSeen: 0, alarmTriggered: false, rfCode: null, version: 1, pendingUpdate: false };
+        systemStatus[deviceId] = { 
+            name: deviceName,
+            status: "online", 
+            lastSeen: 0, 
+            alarmTriggered: false, 
+            rfCode: null,
+            version: version || 1,
+            standalone: Boolean(standalone)
+        };
     }
     
+    // Update device metadata and "last seen" time
     systemStatus[deviceId].name = deviceName;
     systemStatus[deviceId].lastSeen = Date.now();
     systemStatus[deviceId].status = "online";
     if (version) systemStatus[deviceId].version = version;
+    if (standalone !== undefined) systemStatus[deviceId].standalone = Boolean(standalone);
     
-    if (type === "alarm") {
+    // Only standard (non-standalone) alarm payloads trigger the building-wide global alarm
+    if (type === "alarm" && !systemStatus[deviceId].standalone) {
         systemStatus[deviceId].alarmTriggered = true;
         systemStatus[deviceId].rfCode = code;
     }
     
-    let isGlobalAlarm = false;
+    broadcast(); // Update dashboard
+
+    // Check if ANY standard node in the entire building has an active alarm
+    let globalAlarm = false;
     for (let mod in systemStatus) {
-        if (systemStatus[mod].alarmTriggered) { isGlobalAlarm = true; break; }
+        if (!systemStatus[mod].standalone && systemStatus[mod].alarmTriggered) {
+            globalAlarm = true;
+            break;
+        }
     }
     
-    let shouldUpdate = systemStatus[deviceId].pendingUpdate;
-    if (shouldUpdate) systemStatus[deviceId].pendingUpdate = false; 
-    
-    saveDatabase(); // Save state persistently
-    broadcast();
-    res.status(200).json({ globalAlarm: isGlobalAlarm, update: shouldUpdate });
+    // Reply to the Wemos telling it if it needs to sound its local siren
+    res.json({ globalAlarm: globalAlarm });
 });
 
+// --- 3. DASHBOARD "SILENCE ALL" BUTTON HANDLER ---
 app.post('/api/reset-all', (req, res) => {
     for (let mod in systemStatus) {
         systemStatus[mod].alarmTriggered = false;
         systemStatus[mod].rfCode = null;
     }
-    saveDatabase();
     broadcast();
     res.sendStatus(200);
 });
 
-// Admin & Dashboard API Endpoints
-app.post('/api/admin/upload', upload.single('firmware'), (req, res) => {
-    res.status(200).send("Firmware uploaded successfully.");
-});
-
-app.post('/api/admin/update', (req, res) => {
-    const { moduleId } = req.body;
-    if (moduleId === 'ALL') {
-        for (let mod in systemStatus) systemStatus[mod].pendingUpdate = true;
-    } else if (systemStatus[moduleId]) {
-        systemStatus[moduleId].pendingUpdate = true;
-    }
-    saveDatabase();
-    res.sendStatus(200);
-});
-
-app.post('/api/admin/delete', (req, res) => {
-    const { id } = req.body;
-    if (systemStatus[id] && systemStatus[id].status === 'offline') {
-        delete systemStatus[id];
-        saveDatabase();
-        broadcast();
-        res.sendStatus(200);
-    } else {
-        res.status(400).send("Cannot delete an online device.");
-    }
-});
-
-app.post('/api/rename', (req, res) => {
-    const { id, newName } = req.body;
-    if (systemStatus[id] && newName) {
-        systemStatus[id].name = newName.trim();
-        saveDatabase();
-        broadcast();
-        res.sendStatus(200);
-    } else {
-        res.status(400).send("Invalid device or name.");
-    }
-});
-
+// --- 4. OFFLINE DETECTOR TIMEOUT ---
 // Checks for offline nodes every 3 seconds
 setInterval(() => {
     let changed = false;
     const now = Date.now();
     for (let mod in systemStatus) {
+        // If a node hasn't sent a heartbeat in 25 seconds, mark as offline
         if (systemStatus[mod].status === 'online' && (now - systemStatus[mod].lastSeen > 25000)) {
             systemStatus[mod].status = "offline";
             changed = true;
         }
     }
-    if (changed) {
-        saveDatabase();
-        broadcast();
-    }
+    if (changed) broadcast(); // Update dashboard if someone went offline
 }, 3000);
 
 const PORT = process.env.PORT || 3000;
